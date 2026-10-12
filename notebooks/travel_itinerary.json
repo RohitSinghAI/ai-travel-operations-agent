@@ -1,0 +1,65 @@
+{
+  "source": "Hyderabad",
+  "destination": "Goa",
+  "start_date": "2026-11-10",
+  "end_date": "2026-11-12",
+  "travelers": 2,
+  "selected_transport": {
+    "mode": "Bus",
+    "price_per_person": 1000,
+    "duration_hours": 16,
+    "comfort": 3,
+    "total_cost": 2000,
+    "within_budget": true
+  },
+  "selected_hotel": {
+    "name": "Budget Guesthouse",
+    "price_per_night": 1200,
+    "rating": 3.8,
+    "nights": 2,
+    "total_cost": 2400,
+    "total_cost_for_group": 2400,
+    "cost_per_person": 1200.0
+  },
+  "activities": [
+    {
+      "name": "Beach visit",
+      "description": "Enjoy a beach visit and sightseeing.",
+      "estimated_cost_per_person": 300
+    },
+    {
+      "name": "Local food experience",
+      "description": "Explore local cuisine.",
+      "estimated_cost_per_person": 500
+    }
+  ],
+  "weather": {
+    "destination": "Goa",
+    "travel_dates": [
+      "2026-11-10",
+      "2026-11-12"
+    ],
+    "weather_summary": "Check the forecast closer to the travel dates.",
+    "source": "Demo data - not a live forecast",
+    "recommendation": "Verify the actual forecast before departure."
+  },
+  "budget": {
+    "currency": "INR",
+    "total_budget": 15000,
+    "transport_cost": 2000,
+    "hotel_cost": 2400,
+    "activities_cost": 1600,
+    "food_estimate": 3000,
+    "local_transport_estimate": 1000,
+    "estimated_total": 10000,
+    "remaining_budget": 5000,
+    "within_budget": true,
+    "note": "All costs are illustrative estimates."
+  },
+  "review": {
+    "status": "PASS",
+    "issues": [],
+    "verified_live_prices": false,
+    "message": "Plan passed basic checks."
+  }
+}
