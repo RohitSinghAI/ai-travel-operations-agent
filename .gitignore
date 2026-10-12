@@ -1,0 +1,22 @@
+# Environment variables
+.env
+.env.*
+
+# Keep example configuration files
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Frontend
+node_modules/
+dist/
+
+# Secrets and logs
+*.log
