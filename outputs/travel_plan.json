@@ -1,0 +1,130 @@
+{
+  "travel_request": {
+    "source": "Hyderabad",
+    "destination": "Goa",
+    "start_date": "2026-11-10",
+    "end_date": "2026-11-12",
+    "travelers": 2,
+    "budget": 15000,
+    "currency": "INR",
+    "preferences": [
+      "Beaches",
+      "Local Food",
+      "Sightseeing"
+    ]
+  },
+  "transport": {
+    "options": [
+      {
+        "mode": "Flight",
+        "price_per_person": 4500,
+        "duration_hours": 1.5,
+        "source": "Hyderabad",
+        "destination": "Goa",
+        "travelers": 2,
+        "estimated_total": 9000,
+        "data_source": "DEMO"
+      },
+      {
+        "mode": "Train",
+        "price_per_person": 1200,
+        "duration_hours": 14,
+        "source": "Hyderabad",
+        "destination": "Goa",
+        "travelers": 2,
+        "estimated_total": 2400,
+        "data_source": "DEMO"
+      },
+      {
+        "mode": "Bus",
+        "price_per_person": 1000,
+        "duration_hours": 16,
+        "source": "Hyderabad",
+        "destination": "Goa",
+        "travelers": 2,
+        "estimated_total": 2000,
+        "data_source": "DEMO"
+      }
+    ],
+    "cheapest_option": {
+      "mode": "Bus",
+      "price_per_person": 1000,
+      "duration_hours": 16,
+      "source": "Hyderabad",
+      "destination": "Goa",
+      "travelers": 2,
+      "estimated_total": 2000,
+      "data_source": "DEMO"
+    },
+    "fastest_option": {
+      "mode": "Flight",
+      "price_per_person": 4500,
+      "duration_hours": 1.5,
+      "source": "Hyderabad",
+      "destination": "Goa",
+      "travelers": 2,
+      "estimated_total": 9000,
+      "data_source": "DEMO"
+    },
+    "travelers": 2,
+    "data_source": "MCP"
+  },
+  "hotels": {
+    "options": [
+      {
+        "name": "Budget Guesthouse",
+        "price_per_night": 1200,
+        "destination": "Goa",
+        "nights": 2,
+        "travelers": 2,
+        "estimated_total": 2400,
+        "data_source": "DEMO"
+      },
+      {
+        "name": "Beachside Hotel",
+        "price_per_night": 2500,
+        "destination": "Goa",
+        "nights": 2,
+        "travelers": 2,
+        "estimated_total": 5000,
+        "data_source": "DEMO"
+      },
+      {
+        "name": "Premium Resort",
+        "price_per_night": 5000,
+        "destination": "Goa",
+        "nights": 2,
+        "travelers": 2,
+        "estimated_total": 10000,
+        "data_source": "DEMO"
+      }
+    ],
+    "cheapest_option": {
+      "name": "Budget Guesthouse",
+      "price_per_night": 1200,
+      "destination": "Goa",
+      "nights": 2,
+      "travelers": 2,
+      "estimated_total": 2400,
+      "data_source": "DEMO"
+    },
+    "data_source": "MCP"
+  },
+  "weather": {
+    "destination": "Goa",
+    "travel_date": "2026-11-10",
+    "forecast": "No live forecast connected",
+    "data_source": "DEMO"
+  },
+  "budget": {
+    "budget": 15000,
+    "transport_cost": 2000,
+    "hotel_cost": 2400,
+    "estimated_total": 4400,
+    "remaining_budget": 10600,
+    "status": "Within budget",
+    "currency": "INR",
+    "note": "Excludes food, activities, local transport, and other expenses."
+  },
+  "final_summary": "**Travel Summary – Hyderabad ➜ Goa (10 Nov 2026 – 12 Nov 2026)**  \n\n---\n\n### 1. Recommended Transport  \n| Option | Price (INR) | Duration | Total for 2 travelers | Why it fits |\n|--------|-------------|----------|------------------------|-------------|\n| **Bus (Cheapest)** | 1,000 per person | 16 hrs | **2,000** | Lowest cost, leaves plenty of budget for food, activities and optional upgrades. |\n| **Flight (Fastest)** | 4,500 per person | 1.5 hrs | **9,000** | Quickest way to reach Goa; still within the overall INR 15,000 budget if paired with the budget hotel. |\n\n*Both the bus and the flight are available from Hyderabad to Goa for 2 travelers as shown in the transport data.*  \n\n---\n\n### 2. Recommended Hotel  \n| Option | Price per night (INR) | Nights | Total for 2 travelers | Why it fits |\n|--------|-----------------------|--------|------------------------|-------------|\n| **Budget Guesthouse (Cheapest)** | 1,200 | 2 | **2,400** | Lowest accommodation cost, maximises remaining budget for food, beach activities and sightseeing. |\n| **Beachside Hotel** | 2,500 | 2 | 5,000 | Slightly higher price but offers direct beach access, still well within the INR 15,000 budget when combined with the bus transport. |\n| **Premium Resort** | 5,000 | 2 | 10,000 | Luxury option; would exceed the budget if combined with any transport other than the bus. |\n\n*All hotel prices are for the full stay (2 nights) for 2 travelers as provided.*\n\n---\n\n### 3. Cost Breakdown (Using the cheapest combination)  \n\n- **Transport (Bus):** INR 2,000  \n- **Hotel (Budget"
+}
