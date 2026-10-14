@@ -23,14 +23,29 @@
   },
   "activities": [
     {
-      "name": "Beach visit",
-      "description": "Enjoy a beach visit and sightseeing.",
-      "estimated_cost_per_person": 300
+      "name": "Relaxing Day at Calangute Beach",
+      "description": "Spend a leisurely day sunbathing, swimming, and enjoying beachside shacks. Includes sunbed rental and a short sunset walk.",
+      "estimated_cost_per_person": 800.0
     },
     {
-      "name": "Local food experience",
-      "description": "Explore local cuisine.",
-      "estimated_cost_per_person": 500
+      "name": "Goan Culinary Food Tour",
+      "description": "Guided tasting tour of local Goan specialties such as fish curry, vindaloo, bebinca, and feni at popular eateries in Panaji.",
+      "estimated_cost_per_person": 1200.0
+    },
+    {
+      "name": "Dolphin Watching Cruise from Sinquerim",
+      "description": "Morning boat trip to spot playful dolphins, with a brief commentary on marine life and a light snack on board.",
+      "estimated_cost_per_person": 1500.0
+    },
+    {
+      "name": "Old Goa Heritage Walk",
+      "description": "Guided walking tour of UNESCO‑listed churches and cathedrals (Basilica of Bom Jesus, Se Cathedral) plus a stop at a local market.",
+      "estimated_cost_per_person": 900.0
+    },
+    {
+      "name": "Spice Plantation & Sunset Dinner",
+      "description": "Visit a spice plantation for a short guided walk, learn about local spices, and enjoy a sunset dinner featuring traditional Goan cuisine.",
+      "estimated_cost_per_person": 1800.0
     }
   ],
   "weather": {
@@ -48,18 +63,20 @@
     "total_budget": 15000,
     "transport_cost": 2000,
     "hotel_cost": 2400,
-    "activities_cost": 1600,
+    "activities_cost": 12400.0,
     "food_estimate": 3000,
     "local_transport_estimate": 1000,
-    "estimated_total": 10000,
-    "remaining_budget": 5000,
-    "within_budget": true,
+    "estimated_total": 20800.0,
+    "remaining_budget": -5800.0,
+    "within_budget": false,
     "note": "All costs are illustrative estimates."
   },
   "review": {
-    "status": "PASS",
-    "issues": [],
+    "status": "NEEDS_REVIEW",
+    "issues": [
+      "Estimated trip cost exceeds the budget."
+    ],
     "verified_live_prices": false,
-    "message": "Plan passed basic checks."
+    "message": "Review the issues before using this plan."
   }
 }
