@@ -1,0 +1,30 @@
+{
+  "project": "AI Travel Operations Agent",
+  "step": "Step 14 - Final Notebook Testing",
+  "total_tests": 3,
+  "passed": 3,
+  "failed": 0,
+  "results": [
+    {
+      "test": "Normal Budget",
+      "budget": 15000,
+      "estimated_total": 12800.0,
+      "within_budget": true,
+      "passed": true
+    },
+    {
+      "test": "Low Budget",
+      "budget": 5000,
+      "estimated_total": 8400,
+      "within_budget": false,
+      "passed": true
+    },
+    {
+      "test": "High Budget",
+      "budget": 30000,
+      "estimated_total": 24400.0,
+      "within_budget": true,
+      "passed": true
+    }
+  ]
+}
