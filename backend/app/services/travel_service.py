@@ -19,7 +19,6 @@ def generate_travel_plan(request: TravelRequest) -> dict:
         raise RuntimeError(result["error"])
 
     itinerary = result.get("itinerary")
-
     if not itinerary:
         raise RuntimeError(
             "The workflow did not generate an itinerary."
@@ -34,6 +33,7 @@ def generate_travel_plan(request: TravelRequest) -> dict:
         "days": request.days,
         "travelers": request.travelers,
         "tool_data": result.get("tool_data", {}),
+        "budget_breakdown": result.get("budget_breakdown", {}),
         "budget_analysis": result.get("budget_analysis", ""),
         "review_notes": result.get("review_notes", ""),
     }

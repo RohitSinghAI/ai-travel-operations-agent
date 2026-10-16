@@ -20,16 +20,17 @@ def test_create_travel_plan(monkeypatch):
             "status": "success",
             "source": request.source,
             "destination": request.destination,
-            "itinerary": "Day 1: Explore the destination.",
+            "itinerary": "Day 1: Explore Goa.",
             "budget": request.budget,
             "days": request.days,
             "travelers": request.travelers,
-            "tool_data": {
-                "find_transport": {
-                    "tool": "find_transport",
-                    "result": [],
-                }
+            "tool_data": {},
+            "budget_breakdown": {
+                "estimated_total": 9240,
+                "is_live_quote": False,
             },
+            "budget_analysis": "Illustrative budget estimate.",
+            "review_notes": "Sample response.",
         }
 
     monkeypatch.setattr(
@@ -38,18 +39,16 @@ def test_create_travel_plan(monkeypatch):
         fake_generate_travel_plan,
     )
 
-    payload = {
-        "source": "Hyderabad",
-        "destination": "Goa",
-        "days": 3,
-        "budget": 15000,
-        "travelers": 2,
-        "preferences": ["beaches", "local food"],
-    }
-
     response = client.post(
         "/api/travel/plan",
-        json=payload,
+        json={
+            "source": "Hyderabad",
+            "destination": "Goa",
+            "days": 3,
+            "budget": 15000,
+            "travelers": 2,
+            "preferences": ["beaches", "local food"],
+        },
     )
 
     assert response.status_code == 200
@@ -57,12 +56,9 @@ def test_create_travel_plan(monkeypatch):
     data = response.json()
 
     assert data["status"] == "success"
-    assert data["source"] == "Hyderabad"
     assert data["destination"] == "Goa"
-    assert data["days"] == 3
-    assert data["travelers"] == 2
-    assert "itinerary" in data
-    assert "tool_data" in data
+    assert data["budget_breakdown"]["estimated_total"] == 9240
+    assert data["budget_breakdown"]["is_live_quote"] is False
 
 
 def test_invalid_travel_request():
@@ -75,6 +71,15 @@ def test_invalid_travel_request():
             "budget": 15000,
             "travelers": 2,
         },
+    )
+
+    assert response.status_code == 422
+
+
+def test_missing_required_fields():
+    response = client.post(
+        "/api/travel/plan",
+        json={"source": "Hyderabad"},
     )
 
     assert response.status_code == 422

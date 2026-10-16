@@ -24,5 +24,6 @@ class TravelResponse(BaseModel):
     days: int
     travelers: int
     tool_data: dict[str, Any] = Field(default_factory=dict)
+    budget_breakdown: dict[str, Any] = Field(default_factory=dict)
     budget_analysis: str = ""
     review_notes: str = ""
