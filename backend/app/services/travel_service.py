@@ -1,17 +1,29 @@
-from backend.app.travel_graph import run_travel_graph
+
+from backend.app.schemas import TravelRequest
+from backend.app.graph.workflow import travel_graph
 
 
-def create_travel_plan(travel_request: dict) -> dict:
-    result = run_travel_graph(travel_request)
+def generate_travel_plan(request: TravelRequest) -> dict:
+    initial_state = {
+        "source": request.source,
+        "destination": request.destination,
+        "days": request.days,
+        "budget": request.budget,
+        "travelers": request.travelers,
+        "preferences": request.preferences,
+    }
+
+    result = travel_graph.invoke(initial_state)
+
+    if result.get("error"):
+        raise RuntimeError(result["error"])
 
     return {
         "status": "success",
-        "travel_request": result["travel_request"],
-        "transport_options": result["transport_options"],
-        "hotel_options": result["hotel_options"],
-        "weather_info": result["weather_info"],
-        "activities": result["activities"],
-        "budget_summary": result["budget_summary"],
-        "review_result": result["review_result"],
-        "errors": result.get("errors", []),
+        "source": request.source,
+        "destination": request.destination,
+        "itinerary": result.get("itinerary", ""),
+        "budget": request.budget,
+        "days": request.days,
+        "travelers": request.travelers,
     }

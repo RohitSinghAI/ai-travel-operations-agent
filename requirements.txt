@@ -1,6 +1,26 @@
+
+# FastAPI Backend
 fastapi
 uvicorn[standard]
-langgraph
-langchain-groq
 pydantic
 python-dotenv
+
+# AI Agent & LLM
+langgraph
+langchain-core
+langchain-groq
+groq
+
+# MCP Integration
+mcp
+
+# HTTP Requests
+httpx
+requests
+
+# Testing
+pytest
+pytest-asyncio
+
+# Data Validation & Utilities
+typing-extensions
