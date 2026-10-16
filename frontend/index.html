@@ -3,57 +3,37 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AI Travel Operations Agent</title>
 
   <style>
-    :root {
-      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: #182230;
-      background: #f4f7fb;
-      font-synthesis: none;
-    }
-
     * { box-sizing: border-box; }
 
-    body {
-      margin: 0;
-      min-height: 100vh;
+    :root {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      color: #172033;
+      background: #f4f7fb;
     }
+
+    body { margin: 0; }
 
     header {
       background: #12243a;
       color: white;
-      padding: 22px 5%;
+      padding: 24px 5%;
     }
 
-    header h1 {
-      margin: 0;
-      font-size: clamp(22px, 3vw, 30px);
-    }
-
-    header p {
-      margin: 8px 0 0;
-      color: #c6d4e5;
-    }
+    header h1 { margin: 0; font-size: 27px; }
+    header p { color: #c6d4e5; margin-bottom: 0; }
 
     main {
-      width: min(1100px, 92%);
-      margin: 30px auto 60px;
+      width: min(1150px, 92%);
+      margin: 30px auto 55px;
     }
-
-    .hero { margin-bottom: 24px; }
-
-    .hero h2 {
-      margin: 0 0 8px;
-      font-size: 26px;
-    }
-
-    .muted { color: #64748b; }
 
     .layout {
       display: grid;
-      grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+      grid-template-columns: 330px minmax(0, 1fr);
       gap: 22px;
       align-items: start;
     }
@@ -61,16 +41,13 @@
     .card {
       background: white;
       border: 1px solid #e1e8f0;
-      border-radius: 16px;
+      border-radius: 15px;
       padding: 22px;
-      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
       min-width: 0;
+      box-shadow: 0 5px 18px #17203308;
     }
 
-    .card h3 {
-      margin: 0 0 18px;
-      font-size: 19px;
-    }
+    .card h2, .card h3 { margin-top: 0; }
 
     label {
       display: block;
@@ -80,157 +57,152 @@
     }
 
     input, textarea {
-      display: block;
       width: 100%;
-      padding: 11px 12px;
+      padding: 11px;
       border: 1px solid #cbd5e1;
-      border-radius: 9px;
-      background: white;
-      color: #182230;
+      border-radius: 8px;
       font: inherit;
-      outline: none;
     }
 
-    input:focus, textarea:focus {
-      border-color: #3273dc;
-      box-shadow: 0 0 0 3px rgba(50, 115, 220, 0.12);
-    }
-
-    .two-columns {
+    .two {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
     }
 
     button {
+      padding: 11px 15px;
       border: 0;
-      border-radius: 10px;
-      padding: 12px 16px;
-      cursor: pointer;
+      border-radius: 9px;
       font: inherit;
-      font-weight: 700;
+      font-weight: 650;
+      cursor: pointer;
     }
+
+    button:disabled { opacity: .6; cursor: wait; }
 
     .primary {
+      background: #2164d8;
+      color: white;
       width: 100%;
       margin-top: 20px;
-      color: white;
-      background: #2164d8;
     }
 
-    .primary:hover { background: #174fb2; }
-
-    button:disabled {
-      opacity: 0.6;
-      cursor: wait;
-    }
-
-    .notice {
-      margin-top: 14px;
-      padding: 12px;
-      border-radius: 9px;
-      background: #f1f5f9;
-      color: #475569;
-      font-size: 13px;
-      line-height: 1.5;
-    }
-
-    .status {
-      display: none;
-      padding: 12px;
-      border-radius: 9px;
-      margin-bottom: 16px;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-    }
-
-    .status.error {
-      display: block;
-      background: #fff0f0;
-      color: #a32020;
-    }
-
-    .status.loading {
-      display: block;
-      background: #edf4ff;
+    .secondary {
+      background: #eaf1ff;
       color: #174fb2;
     }
 
-    .results { display: grid; gap: 18px; }
-
-    .empty {
-      text-align: center;
-      padding: 55px 18px;
-      color: #64748b;
+    .notice, .status {
+      padding: 12px;
+      border-radius: 9px;
+      font-size: 13px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
     }
 
-    .empty .symbol { font-size: 40px; }
+    .notice { background: #f1f5f9; margin-top: 15px; }
+    .status { display: none; margin-bottom: 15px; }
+    .status.loading { display: block; background: #eaf1ff; color: #174fb2; }
+    .status.error { display: block; background: #fff0f0; color: #a32020; }
+    .status.success { display: block; background: #eaf8ef; color: #176b38; }
 
-    .summary-grid {
+    .results { display: grid; gap: 18px; }
+    .hidden { display: none !important; }
+    .muted { color: #64748b; }
+
+    .summary {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 10px;
-      margin-bottom: 16px;
+      margin-bottom: 20px;
     }
 
-    .summary-item {
-      background: #f5f8fc;
+    .metric {
+      background: #f4f7fb;
       border-radius: 10px;
       padding: 13px;
-      min-width: 0;
+      overflow-wrap: anywhere;
     }
 
-    .summary-item span {
+    .metric span {
       display: block;
-      color: #64748b;
       font-size: 12px;
+      color: #64748b;
       margin-bottom: 5px;
     }
 
-    .summary-item strong {
-      display: block;
-      overflow-wrap: anywhere;
-    }
+    .metric strong { font-size: 17px; }
 
     pre {
       white-space: pre-wrap;
       overflow-wrap: anywhere;
-      word-break: normal;
       font: inherit;
       font-size: 14px;
       line-height: 1.7;
       margin: 0;
     }
 
-    details {
-      border: 1px solid #e1e8f0;
-      border-radius: 10px;
-      padding: 12px;
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+
+    .table-wrap { overflow-x: auto; }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 14px;
     }
 
-    summary {
-      cursor: pointer;
+    th, td {
+      text-align: left;
+      padding: 12px 9px;
+      border-bottom: 1px solid #e5eaf1;
+    }
+
+    th { background: #f4f7fb; }
+    td:last-child, th:last-child { text-align: right; }
+
+    .badge {
+      display: inline-block;
+      border-radius: 99px;
+      padding: 4px 9px;
+      font-size: 12px;
       font-weight: 650;
     }
 
-    details pre {
-      margin-top: 12px;
-      font-size: 12px;
-      color: #475569;
+    .ok { background: #e6f7ed; color: #176b38; }
+    .warn { background: #fff3d8; color: #855600; }
+    .bad { background: #ffe8e8; color: #a32020; }
+
+    .tool-list { display: grid; gap: 10px; }
+
+    .tool-item {
+      padding: 13px;
+      border: 1px solid #e1e8f0;
+      border-radius: 9px;
     }
 
-    .hidden { display: none !important; }
+    .tool-heading {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    details { margin-top: 12px; }
+    summary { cursor: pointer; font-weight: 650; }
 
     footer {
       text-align: center;
-      padding: 20px;
       color: #64748b;
       font-size: 12px;
+      padding: 20px;
     }
 
-    @media (max-width: 760px) {
+    @media (max-width: 780px) {
       .layout { grid-template-columns: 1fr; }
-      .summary-grid { grid-template-columns: 1fr; }
+      .summary { grid-template-columns: 1fr; }
       main { margin-top: 20px; }
     }
   </style>
@@ -239,16 +211,12 @@
 <body>
   <header>
     <h1>✈ AI Travel Operations Agent</h1>
-    <p>Plan smarter trips with AI, travel tools and budget analysis.</p>
+    <p>AI itinerary planning, budget estimates and travel tool diagnostics</p>
   </header>
 
   <main>
-    <section class="hero">
-      <h2>Plan your next trip</h2>
-      <p class="muted">
-        Enter your travel details and generate a personalized itinerary.
-      </p>
-    </section>
+    <h2>Plan your next trip</h2>
+    <p class="muted">Enter your trip details to generate an itinerary.</p>
 
     <div class="layout">
       <section class="card">
@@ -256,108 +224,69 @@
 
         <form id="travel-form">
           <label for="source">Starting city</label>
-          <input
-            id="source"
-            name="source"
-            value="Hyderabad"
-            minlength="2"
-            maxlength="100"
-            required
-          >
+          <input id="source" value="Hyderabad" minlength="2" maxlength="100" required>
 
           <label for="destination">Destination city</label>
-          <input
-            id="destination"
-            name="destination"
-            value="Goa"
-            minlength="2"
-            maxlength="100"
-            required
-          >
+          <input id="destination" value="Goa" minlength="2" maxlength="100" required>
 
-          <div class="two-columns">
+          <div class="two">
             <div>
               <label for="days">Days</label>
-              <input
-                id="days"
-                name="days"
-                type="number"
-                min="1"
-                max="30"
-                value="3"
-                required
-              >
+              <input id="days" type="number" min="1" max="30" value="3" required>
             </div>
-
             <div>
               <label for="travelers">Travelers</label>
-              <input
-                id="travelers"
-                name="travelers"
-                type="number"
-                min="1"
-                max="50"
-                value="2"
-                required
-              >
+              <input id="travelers" type="number" min="1" max="50" value="2" required>
             </div>
           </div>
 
           <label for="budget">Total budget (INR)</label>
-          <input
-            id="budget"
-            name="budget"
-            type="number"
-            min="1"
-            step="0.01"
-            value="15000"
-            required
-          >
+          <input id="budget" type="number" min="1" value="15000" required>
 
-          <label for="preferences">Travel preferences</label>
-          <textarea
-            id="preferences"
-            name="preferences"
-            rows="3"
-            placeholder="Beaches, local food, nature..."
-          >beaches, local food</textarea>
+          <label for="preferences">Preferences (comma separated)</label>
+          <textarea id="preferences" rows="3">beaches, local food</textarea>
 
-          <button class="primary" id="submit-button" type="submit">
+          <button id="submit-button" class="primary" type="submit">
             Generate travel plan
           </button>
         </form>
 
         <div class="notice">
-          Prices and options may be estimates or sample data. This tool does
-          not make bookings or guarantee live availability.
+          Sample prices are estimates, not live quotes. The application
+          does not make bookings or guarantee availability.
         </div>
       </section>
 
       <section class="results">
         <div id="status" class="status" role="status" aria-live="polite"></div>
 
-        <div id="empty-state" class="card empty">
-          <div class="symbol">🗺️</div>
-          <h3>Your travel plan will appear here</h3>
-          <p>Fill in the trip details and select Generate travel plan.</p>
-        </div>
+        <section id="empty-card" class="card">
+          <h3>Your itinerary will appear here</h3>
+          <p class="muted">Submit your trip details to get started.</p>
+        </section>
 
         <section id="plan-card" class="card hidden">
-          <h3 id="plan-title">Your itinerary</h3>
+          <h2 id="plan-title">Travel plan</h2>
 
-          <div class="summary-grid">
-            <div class="summary-item">
+          <div class="summary">
+            <div class="metric">
               <span>Duration</span>
-              <strong id="summary-days">—</strong>
+              <strong id="metric-days">—</strong>
             </div>
-            <div class="summary-item">
+            <div class="metric">
               <span>Travelers</span>
-              <strong id="summary-travelers">—</strong>
+              <strong id="metric-travelers">—</strong>
             </div>
-            <div class="summary-item">
+            <div class="metric">
               <span>Budget</span>
-              <strong id="summary-budget">—</strong>
+              <strong id="metric-budget">—</strong>
             </div>
+          </div>
+
+          <div class="actions">
+            <button id="download-button" class="secondary" type="button">
+              Download itinerary (.txt)
+            </button>
           </div>
 
           <h3>AI itinerary</h3>
@@ -365,18 +294,45 @@
         </section>
 
         <section id="budget-card" class="card hidden">
-          <h3>Budget analysis</h3>
-          <pre id="budget-analysis"></pre>
+          <h3>Budget breakdown</h3>
+          <p id="budget-warning" class="muted"></p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody id="budget-rows"></tbody>
+            </table>
+          </div>
+
+          <div class="summary" style="margin-top:16px;margin-bottom:0">
+            <div class="metric">
+              <span>Estimated total</span>
+              <strong id="budget-total">—</strong>
+            </div>
+            <div class="metric">
+              <span>Budget remaining</span>
+              <strong id="budget-remaining">—</strong>
+            </div>
+            <div class="metric">
+              <span>Price data</span>
+              <strong id="budget-reliability">—</strong>
+            </div>
+          </div>
         </section>
 
         <section id="tools-card" class="card hidden">
-          <h3>Travel tool results</h3>
-          <p class="muted">
-            Results from the MCP tools used by the planning workflow.
-          </p>
+          <h3>MCP tool diagnostics</h3>
+          <p class="muted">A successful tool call does not necessarily mean its data is live.</p>
+          <div id="tool-list" class="tool-list"></div>
+
           <details>
-            <summary>View raw tool data</summary>
-            <pre id="tool-data"></pre>
+            <summary>View raw tool response</summary>
+            <pre id="raw-tools"></pre>
           </details>
         </section>
 
@@ -388,29 +344,25 @@
     </div>
   </main>
 
-  <footer>
-    AI Travel Operations Agent · Estimates are not live quotes.
-  </footer>
+  <footer>AI Travel Operations Agent · Estimates are not confirmed prices.</footer>
 
   <script>
     const form = document.getElementById("travel-form");
     const submitButton = document.getElementById("submit-button");
     const statusBox = document.getElementById("status");
 
-    const emptyState = document.getElementById("empty-state");
-    const planCard = document.getElementById("plan-card");
-    const budgetCard = document.getElementById("budget-card");
-    const toolsCard = document.getElementById("tools-card");
-    const reviewCard = document.getElementById("review-card");
+    let latestReport = "";
 
-    function setStatus(message, type = "") {
-      statusBox.textContent = message;
-      statusBox.className = type ? `status ${type}` : "status";
-    }
+    const toolNames = {
+      find_transport: "Transport",
+      find_hotels: "Hotels",
+      find_activities: "Activities",
+      check_weather: "Weather"
+    };
 
-    function formatCurrency(value) {
+    function formatINR(value) {
       if (typeof value !== "number" || !Number.isFinite(value)) {
-        return "Not available";
+        return "Unavailable";
       }
 
       return new Intl.NumberFormat("en-IN", {
@@ -420,142 +372,283 @@
       }).format(value);
     }
 
-    function showOptionalText(elementId, value, cardId) {
-      const card = document.getElementById(cardId);
-      const element = document.getElementById(elementId);
-
-      if (value !== undefined && value !== null && value !== "") {
-        element.textContent =
-          typeof value === "string" ? value : JSON.stringify(value, null, 2);
-        card.classList.remove("hidden");
-      } else {
-        element.textContent = "";
-        card.classList.add("hidden");
-      }
+    function setStatus(message, type) {
+      statusBox.textContent = message;
+      statusBox.className = type ? `status ${type}` : "status";
     }
 
-    function displayPlan(data) {
-      emptyState.classList.add("hidden");
-      planCard.classList.remove("hidden");
+    function show(id, visible) {
+      document.getElementById(id).classList.toggle("hidden", !visible);
+    }
+
+    function addBudgetRow(label, amount) {
+      const row = document.createElement("tr");
+      const nameCell = document.createElement("td");
+      const amountCell = document.createElement("td");
+
+      nameCell.textContent = label;
+      amountCell.textContent = formatINR(amount);
+
+      row.append(nameCell, amountCell);
+      document.getElementById("budget-rows").appendChild(row);
+    }
+
+    function renderBudget(data) {
+      const breakdown = data.budget_breakdown || {};
+      const items = breakdown.line_items;
+
+      show("budget-card", Boolean(items));
+
+      if (!items) {
+        document.getElementById("budget-warning").textContent =
+          data.budget_analysis || "No structured budget breakdown was returned.";
+        document.getElementById("budget-rows").replaceChildren();
+        document.getElementById("budget-total").textContent = "Unavailable";
+        document.getElementById("budget-remaining").textContent = "Unavailable";
+        document.getElementById("budget-reliability").textContent = "Unknown";
+        return;
+      }
+
+      const rows = document.getElementById("budget-rows");
+      rows.replaceChildren();
+
+      const labels = {
+        transport: "Transport",
+        accommodation: "Accommodation",
+        food: "Food",
+        activities: "Activities",
+        contingency: "Contingency"
+      };
+
+      for (const [key, label] of Object.entries(labels)) {
+        const item = items[key];
+        addBudgetRow(label, item ? item.amount : null);
+      }
+
+      document.getElementById("budget-total").textContent =
+        formatINR(breakdown.estimated_total);
+
+      document.getElementById("budget-remaining").textContent =
+        formatINR(breakdown.budget_remaining);
+
+      document.getElementById("budget-reliability").textContent =
+        breakdown.is_live_quote === true ? "Live quote" : "Estimate";
+
+      const warnings = Array.isArray(breakdown.warnings)
+        ? breakdown.warnings.join(" ")
+        : "";
+
+      let budgetMessage = breakdown.essential_prices_complete
+        ? "Essential transport and accommodation prices were returned."
+        : "Important prices are missing. The displayed total may be incomplete.";
+
+      if (breakdown.is_live_quote !== true) {
+        budgetMessage += " Prices are not verified live quotes.";
+      }
+
+      if (warnings) budgetMessage += " " + warnings;
+
+      document.getElementById("budget-warning").textContent = budgetMessage;
+    }
+
+    function toolMessage(result) {
+      if (!result || typeof result !== "object") {
+        return "No result returned.";
+      }
+
+      if (result.error) return result.error;
+
+      const payload = result.result;
+
+      if (payload === undefined || payload === null) {
+        return "Tool returned no data.";
+      }
+
+      if (Array.isArray(payload) && payload.length === 0) {
+        return "Tool succeeded but returned no options.";
+      }
+
+      if (Array.isArray(payload)) {
+        const texts = payload
+          .filter(item => item && typeof item.text === "string")
+          .map(item => item.text);
+
+        if (texts.length) return texts.join("\n");
+      }
+
+      return typeof payload === "string"
+        ? payload
+        : JSON.stringify(payload);
+    }
+
+    function renderTools(toolData) {
+      const list = document.getElementById("tool-list");
+      list.replaceChildren();
+
+      const entries = Object.entries(toolNames);
+
+      for (const [key, label] of entries) {
+        const result = toolData ? toolData[key] : null;
+        const failed = !result || Boolean(result.error);
+        const hasResult = result && result.result !== undefined;
+        const message = toolMessage(result);
+
+        const item = document.createElement("div");
+        item.className = "tool-item";
+
+        const heading = document.createElement("div");
+        heading.className = "tool-heading";
+
+        const name = document.createElement("strong");
+        name.textContent = label;
+
+        const badge = document.createElement("span");
+        badge.className = "badge " + (failed ? "bad" : "ok");
+        badge.textContent = failed ? "Error / unavailable" : "Call succeeded";
+
+        heading.append(name, badge);
+
+        const description = document.createElement("p");
+        description.className = "muted";
+        description.style.marginBottom = "0";
+        description.style.whiteSpace = "pre-wrap";
+        description.style.overflowWrap = "anywhere";
+        description.textContent = message;
+
+        item.append(heading, description);
+        list.appendChild(item);
+      }
+
+      document.getElementById("raw-tools").textContent =
+        JSON.stringify(toolData || {}, null, 2);
+
+      show("tools-card", true);
+    }
+
+    function renderPlan(data) {
+      show("empty-card", false);
+      show("plan-card", true);
 
       document.getElementById("plan-title").textContent =
         `${data.source} → ${data.destination}`;
 
-      document.getElementById("summary-days").textContent =
+      document.getElementById("metric-days").textContent =
         `${data.days} day(s)`;
 
-      document.getElementById("summary-travelers").textContent =
-        `${data.travelers}`;
+      document.getElementById("metric-travelers").textContent =
+        String(data.travelers);
 
-      document.getElementById("summary-budget").textContent =
-        formatCurrency(data.budget);
+      document.getElementById("metric-budget").textContent =
+        formatINR(data.budget);
 
       document.getElementById("itinerary").textContent =
         data.itinerary || "No itinerary was returned.";
 
-      const budgetData = data.budget_breakdown;
+      renderBudget(data);
+      renderTools(data.tool_data);
 
-      if (budgetData && Object.keys(budgetData).length > 0) {
-        const budgetText = [
-          `Estimated total: ${formatCurrency(budgetData.estimated_total)}`,
-          `User budget: ${formatCurrency(budgetData.user_budget)}`,
-          `Remaining: ${formatCurrency(budgetData.budget_remaining)}`,
-          `Essential prices complete: ${budgetData.essential_prices_complete}`,
-          `Live quote: ${budgetData.is_live_quote}`,
-          "",
-          "Line items:",
-          JSON.stringify(budgetData.line_items || {}, null, 2),
-          "",
-          "Warnings:",
-          JSON.stringify(budgetData.warnings || [], null, 2)
-        ].join("\n");
+      const review = data.review_notes || "No review notes returned.";
+      document.getElementById("review-notes").textContent = review;
+      show("review-card", true);
 
-        showOptionalText(
-          "budget-analysis",
-          budgetText,
-          "budget-card"
-        );
-      } else {
-        showOptionalText(
-          "budget-analysis",
-          data.budget_analysis,
-          "budget-card"
-        );
-      }
-
-      showOptionalText(
-        "tool-data",
-        data.tool_data,
-        "tools-card"
-      );
-
-      showOptionalText(
-        "review-notes",
-        data.review_notes,
-        "review-card"
-      );
+      latestReport = [
+        "AI TRAVEL OPERATIONS AGENT",
+        `${data.source} to ${data.destination}`,
+        `Days: ${data.days}`,
+        `Travelers: ${data.travelers}`,
+        `User budget: ${formatINR(data.budget)}`,
+        "",
+        "ITINERARY",
+        data.itinerary || "",
+        "",
+        "BUDGET BREAKDOWN",
+        JSON.stringify(data.budget_breakdown || {}, null, 2),
+        "",
+        "BUDGET ANALYSIS",
+        data.budget_analysis || "",
+        "",
+        "TOOL RESULTS",
+        JSON.stringify(data.tool_data || {}, null, 2),
+        "",
+        "REVIEW NOTES",
+        review,
+        "",
+        "Prices and availability are not guaranteed live quotes."
+      ].join("\n");
     }
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-
-      setStatus("");
+      setStatus("Generating your travel plan. Please wait...", "loading");
       submitButton.disabled = true;
-      submitButton.textContent = "Generating plan...";
-      setStatus(
-        "Connecting to the travel planning workflow. This may take a moment.",
-        "loading"
-      );
-
-      const preferencesText =
-        document.getElementById("preferences").value;
-
-      const payload = {
-        source: document.getElementById("source").value.trim(),
-        destination: document.getElementById("destination").value.trim(),
-        days: Number(document.getElementById("days").value),
-        travelers: Number(document.getElementById("travelers").value),
-        budget: Number(document.getElementById("budget").value),
-        preferences: preferencesText
-          .split(",")
-          .map(item => item.trim())
-          .filter(Boolean)
-      };
 
       try {
+        const preferences = document.getElementById("preferences").value
+          .split(",")
+          .map(item => item.trim())
+          .filter(Boolean);
+
+        const payload = {
+          source: document.getElementById("source").value.trim(),
+          destination: document.getElementById("destination").value.trim(),
+          days: Number(document.getElementById("days").value),
+          travelers: Number(document.getElementById("travelers").value),
+          budget: Number(document.getElementById("budget").value),
+          preferences
+        };
+
         const response = await fetch("/api/travel/plan", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
 
         const data = await response.json();
 
         if (!response.ok) {
-          const detail = typeof data.detail === "string"
+          const message = typeof data.detail === "string"
             ? data.detail
-            : JSON.stringify(data.detail || data, null, 2);
+            : JSON.stringify(data.detail || data);
 
-          throw new Error(detail || `HTTP ${response.status}`);
+          throw new Error(message || `HTTP ${response.status}`);
         }
 
-        if (data.status !== "success" || !data.itinerary) {
-          throw new Error("The API did not return a successful itinerary.");
+        if (!data.itinerary) {
+          throw new Error("The API response did not include an itinerary.");
         }
 
-        displayPlan(data);
-        setStatus("Travel plan generated successfully.", "");
+        renderPlan(data);
+        setStatus("Travel plan generated successfully.", "success");
       } catch (error) {
         setStatus(
-          `Could not generate the travel plan.\n${error.message}\n\nCheck that the FastAPI server is running and review the backend terminal for details.`,
+          `Could not generate a travel plan: ${error.message}\nCheck that the FastAPI server is running and inspect its terminal logs.`,
           "error"
         );
       } finally {
         submitButton.disabled = false;
-        submitButton.textContent = "Generate travel plan";
       }
+    });
+
+    document.getElementById("download-button").addEventListener("click", () => {
+      if (!latestReport) {
+        setStatus("Generate a travel plan before downloading.", "error");
+        return;
+      }
+
+      const blob = new Blob([latestReport], {
+        type: "text/plain;charset=utf-8"
+      });
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = "travel-itinerary.txt";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      URL.revokeObjectURL(url);
     });
   </script>
 </body>
