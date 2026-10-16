@@ -9,6 +9,9 @@ class TravelAgentState(TypedDict, total=False):
     budget: float
     travelers: int
     preferences: list[str]
+
     tool_data: dict[str, Any]
+    budget_analysis: str
     itinerary: str
+    review_notes: str
     error: str
