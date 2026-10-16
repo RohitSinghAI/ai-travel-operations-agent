@@ -18,12 +18,20 @@ def generate_travel_plan(request: TravelRequest) -> dict:
     if result.get("error"):
         raise RuntimeError(result["error"])
 
+    itinerary = result.get("itinerary")
+
+    if not itinerary:
+        raise RuntimeError(
+            "The travel graph returned no itinerary."
+        )
+
     return {
         "status": "success",
         "source": request.source,
         "destination": request.destination,
-        "itinerary": result.get("itinerary", ""),
+        "itinerary": itinerary,
         "budget": request.budget,
         "days": request.days,
         "travelers": request.travelers,
+        "tool_data": result.get("tool_data", {}),
     }

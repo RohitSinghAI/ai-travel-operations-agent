@@ -1,5 +1,5 @@
 
-from typing import TypedDict
+from typing import Any, TypedDict
 
 
 class TravelAgentState(TypedDict, total=False):
@@ -9,5 +9,6 @@ class TravelAgentState(TypedDict, total=False):
     budget: float
     travelers: int
     preferences: list[str]
+    tool_data: dict[str, Any]
     itinerary: str
     error: str

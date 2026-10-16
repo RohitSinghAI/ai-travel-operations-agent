@@ -10,7 +10,6 @@ def build_travel_graph():
     graph = StateGraph(TravelAgentState)
 
     graph.add_node("plan_travel", plan_travel)
-
     graph.add_edge(START, "plan_travel")
 
     graph.add_conditional_edges(

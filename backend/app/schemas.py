@@ -1,17 +1,21 @@
 
-from pydantic import BaseModel, Field
+from typing import Any
+
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class TravelRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     source: str = Field(
         min_length=2,
         max_length=100,
-        description="Starting city"
+        description="Starting city",
     )
     destination: str = Field(
         min_length=2,
         max_length=100,
-        description="Destination city"
+        description="Destination city",
     )
     days: int = Field(ge=1, le=30)
     budget: float = Field(gt=0)
@@ -27,3 +31,4 @@ class TravelResponse(BaseModel):
     budget: float
     days: int
     travelers: int
+    tool_data: dict[str, Any] = Field(default_factory=dict)

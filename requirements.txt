@@ -12,7 +12,7 @@ langchain-groq
 groq
 
 # MCP Integration
-mcp
+mcp>=1.28,<2
 
 # HTTP Requests
 httpx
