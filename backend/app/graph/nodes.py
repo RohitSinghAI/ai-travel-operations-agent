@@ -216,8 +216,142 @@ def _json_for_prompt(value: Any, max_chars: int = 16000) -> str:
     return serialized
 
 
+
+def _location_matches_destination(destination: str, location: Any) -> bool:
+    """Compare resolved place/country fields with a user-entered destination."""
+    if not isinstance(location, dict):
+        return False
+
+    requested_parts = [part.strip().casefold() for part in destination.split(",") if part.strip()]
+    requested_place = requested_parts[0] if requested_parts else ""
+    requested_country = requested_parts[-1] if len(requested_parts) > 1 else ""
+
+    returned_name = str(location.get("name") or "").strip().casefold()
+    returned_country = str(location.get("country") or "").strip().casefold()
+
+    if not requested_place or not returned_name:
+        return False
+    if returned_name != requested_place and requested_place not in returned_name:
+        return False
+    if requested_country and returned_country and requested_country != returned_country:
+        return False
+    # If the request explicitly included a country but the provider omitted it,
+    # do not claim the destination was fully verified.
+    if requested_country and not returned_country:
+        return False
+    return True
+
+
+def _forecast_for_trip(
+    forecast: Any,
+    check_in: Any,
+    check_out: Any,
+) -> tuple[list[dict[str, Any]], bool]:
+    """Return forecast days inside the requested trip window and coverage status."""
+    if not isinstance(forecast, list):
+        return [], False
+
+    start_date = str(check_in or "")[:10]
+    end_date = str(check_out or "")[:10]
+    if not start_date or not end_date:
+        return [], False
+
+    matching_days = [
+        item for item in forecast
+        if isinstance(item, dict)
+        and start_date <= str(item.get("date") or "")[:10] <= end_date
+    ]
+    expected_dates = {str(item.get("date") or "")[:10] for item in matching_days}
+    try:
+        from datetime import date, timedelta
+        start = date.fromisoformat(start_date)
+        end = date.fromisoformat(end_date)
+        if end < start:
+            return [], False
+        required_dates = {
+            (start + timedelta(days=offset)).isoformat()
+            for offset in range((end - start).days + 1)
+        }
+    except (TypeError, ValueError):
+        return matching_days, False
+
+    return matching_days, required_dates.issubset(expected_dates)
+
+
+def _rank_tourist_places(places: list) -> list:
+    """Rank places by relevance without claiming official verification."""
+
+    if not isinstance(places, list):
+        return []
+
+    category_scores = {
+        "beach": 10,
+        "waterfall": 10,
+        "fort": 10,
+        "castle": 10,
+        "heritage": 9,
+        "historic": 9,
+        "museum": 9,
+        "church": 9,
+        "palace": 9,
+        "manor": 8,
+        "archaeological_site": 8,
+        "viewpoint": 8,
+        "attraction": 7,
+        "gallery": 7,
+        "zoo": 7,
+        "theme_park": 7,
+        "park": 3,
+        "artwork": 2,
+        "nearby documented place": 1,
+    }
+
+    keywords = {
+        "beach": 10,
+        "waterfall": 10,
+        "fort": 10,
+        "museum": 9,
+        "church": 9,
+        "palace": 9,
+        "heritage": 9,
+        "temple": 8,
+        "viewpoint": 8,
+    }
+
+    ranked = []
+    seen = set()
+
+    for place in places:
+        if not isinstance(place, dict):
+            continue
+
+        name = str(place.get("name") or "").strip()
+        if not name:
+            continue
+
+        key = name.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+
+        category = str(place.get("category") or "").casefold()
+        name_lower = name.casefold()
+        score = category_scores.get(category, 2)
+
+        for keyword, keyword_score in keywords.items():
+            if keyword in name_lower:
+                score = max(score, keyword_score)
+
+        # Keep original source and verification metadata unchanged.
+        ranked.append((score, place))
+
+    ranked.sort(key=lambda item: item[0], reverse=True)
+    return [place for _, place in ranked]
+
+
 def itinerary_agent_node(state: TravelAgentState) -> TravelAgentState:
-    """Generate a practical itinerary from the collected evidence."""
+    """Generate a practical itinerary from validated travel evidence."""
+
     if state.get("error"):
         return state
 
@@ -226,12 +360,103 @@ def itinerary_agent_node(state: TravelAgentState) -> TravelAgentState:
     live_weather = tool_data.get("live_weather") or {}
     live_places = tool_data.get("live_places") or {}
 
+    destination = str(state.get("destination", "")).strip()
+
+    # --------------------------------------------------
+    # 1. Validate weather location and trip dates
+    # --------------------------------------------------
+    weather_location = live_weather.get("location") or {}
+
+    weather_matches = _location_matches_destination(
+        destination,
+        weather_location,
+    )
+
+    trip_forecast, forecast_covers_trip = _forecast_for_trip(
+        live_weather.get("forecast"),
+        state.get("check_in"),
+        state.get("check_out"),
+    )
+
+    weather_for_prompt = {
+        "status": live_weather.get("status", "unavailable"),
+        "location": weather_location,
+        "location_matches_requested_destination": weather_matches,
+        "current": (
+            live_weather.get("current")
+            if weather_matches
+            else None
+        ),
+        "trip_forecast": (
+            trip_forecast
+            if weather_matches and forecast_covers_trip
+            else []
+        ),
+        "forecast_covers_entire_trip": bool(
+            weather_matches and forecast_covers_trip
+        ),
+        "note": (
+            "Forecast covers the complete requested trip date range."
+            if weather_matches and forecast_covers_trip
+            else (
+                "A destination-matched forecast for the complete trip "
+                "date range is unavailable. Do not use current conditions "
+                "or a partial forecast as trip-date weather."
+            )
+        ),
+    }
+
+    # --------------------------------------------------
+    # 2. Validate tourist-place destination and rank places
+    # --------------------------------------------------
+    places_location = (
+        live_places.get("location")
+        or live_places.get("resolved_location")
+        or {}
+    )
+
+    places_match = _location_matches_destination(
+        destination,
+        places_location,
+    )
+
+    raw_places = live_places.get("places") or []
+
+    ranked_places = (
+        _rank_tourist_places(raw_places)
+        if places_match
+        else []
+    )
+
+    places_for_prompt = {
+        "status": live_places.get("status", "unavailable"),
+        "provider": live_places.get("provider"),
+        "location": places_location,
+        "location_matches_requested_destination": places_match,
+        "count": len(ranked_places),
+        "places": ranked_places,
+        "note": (
+            "Places are ranked by relevance heuristics. Ranking does not "
+            "prove official verification or current visitor access. "
+            "Only describe a place as verified when its "
+            "verified_tourist_attraction field is explicitly true."
+            if places_match
+            else (
+                "Place results do not match the requested destination. "
+                "Do not use them in the itinerary."
+            )
+        ),
+    }
+
+    # --------------------------------------------------
+    # 3. Build itinerary prompt
+    # --------------------------------------------------
     prompt = f"""
 You are an AI travel itinerary planner. Be practical, transparent, and factual.
 
 TRIP DETAILS
 - Source: {state.get("source", "")}
-- Destination: {state.get("destination", "")}
+- Destination: {destination}
 - Start date: {state.get("check_in", "Not provided")}
 - End date: {state.get("check_out", "Not provided")}
 - Duration: {state.get("days", 1)} days
@@ -240,6 +465,7 @@ TRIP DETAILS
 - Preferences: {state.get("preferences", [])}
 
 SPECIALIST AGENT OUTPUTS
+
 Transport options:
 {_json_for_prompt(state.get("transport_options", {}), 5000)}
 
@@ -249,48 +475,135 @@ Hotel options:
 Activity options:
 {_json_for_prompt(state.get("activity_options", {}), 5000)}
 
-Weather summary:
-{_json_for_prompt(state.get("weather_summary", {}), 4000)}
+Weather summary from specialist agent:
+{_json_for_prompt(state.get("weather_summary", {}), 3000)}
 
-COLLECTED TOOL DATA
+VALIDATED WEATHER FOR REQUESTED TRIP DATES:
+{_json_for_prompt(weather_for_prompt, 4000)}
+
+RANKED TOURIST-PLACE DATA:
+{_json_for_prompt(places_for_prompt, 6000)}
+
+COLLECTED TOOL DATA:
 {_json_for_prompt(tool_data, 10000)}
 
-AUTHORITATIVE PYTHON BUDGET (do not modify these amounts)
+AUTHORITATIVE PYTHON BUDGET:
 {_json_for_prompt(budget_breakdown, 5000)}
 
 RULES
-1. The Python budget breakdown is authoritative. Do not recalculate or change its amounts.
-2. Do not suggest flights or use a flight API. Prefer train and bus; if options are missing, say transport prices/options are unavailable and ask the traveler to verify independently.
-3. Never invent transport fares, hotel prices, availability, opening hours, ticket prices, or booking confirmations.
-4. Treat data with is_live_quote=false, sample labels, or unavailable status as sample/non-live data, not a live quote.
-5. If live weather status is not "live", say live weather could not be retrieved.
-6. Confirm that live weather/place data refers to the requested destination. If the returned location is different from the requested destination, do not use that data; explicitly flag a location mismatch.
-7. Do not call a Wikipedia result a verified attraction unless verified_tourist_attraction is explicitly true.
-8. If accommodation or transport costs are missing, do not present the budget as a complete trip cost. Clearly mention the missing costs.
-9. Follow the requested number of days and travelers. If dates are provided, align the schedule to those dates.
-10. Respect the stated budget and explain any shortfall without changing the Python totals.
-11. Suggest practical meals and activities, but label any unsourced prices as estimates only if the budget service explicitly provides them as estimates.
-12. The project currently has no flight booking integration; do not mention flight booking as an available feature.
 
-Return:
-- A short trip overview
-- Day-by-day plan
-- Transport and accommodation notes
-- Weather note, only if valid for the requested destination
-- Exact budget breakdown copied from the Python result
-- Missing-data warnings and practical next steps
+1. The Python budget breakdown is authoritative. Copy its amounts exactly.
+   Do not recalculate, alter, or silently replace its totals.
+
+2. Do not suggest flights or use a flight API. Prefer train and bus.
+   If transport options are missing, say that transport options and fares
+   are unavailable and ask the traveler to verify independently.
+
+3. Never invent transport fares, hotel prices, availability, opening
+   hours, ticket prices, or booking confirmations.
+
+4. Data marked is_live_quote=false, sample, or unavailable is not a
+   confirmed live quote.
+
+5. Use weather as trip-date forecast only when both
+   location_matches_requested_destination and
+   forecast_covers_entire_trip are true.
+
+6. If a valid full-trip forecast is unavailable, explicitly say so.
+   Never present current weather or a partial/out-of-range forecast
+   as weather for the requested travel dates.
+
+7. Use tourist-place data only when
+   location_matches_requested_destination is true.
+
+8. Prioritize relevant beaches, forts, waterfalls, heritage sites,
+   museums, churches, viewpoints, and other suitable visitor attractions.
+
+9. Deprioritize generic playgrounds, roadside statues, and ordinary
+   residential localities unless specifically requested by the traveler.
+
+10. Ranking is a relevance heuristic, not proof of official verification.
+    Do not claim a place is officially verified or open to visitors unless
+    the supplied evidence supports that claim.
+
+11. Never call a Wikipedia result a verified attraction unless
+    verified_tourist_attraction is explicitly true.
+
+12. If no relevant places are available, disclose this limitation.
+    Do not invent attractions or present unrelated places as highlights.
+
+13. If accommodation or transport costs are missing, do not describe
+    the budget as a complete trip cost.
+
+14. Follow the requested number of days, travelers, and dates.
+
+15. Respect the budget. Explain missing costs or potential shortfalls
+    without changing the authoritative Python budget totals.
+
+16. Do not present unsourced prices as confirmed prices. Label estimates
+    only when the supplied budget data explicitly supports them.
+
+17. This project does not provide flight booking.
+
+
+18. OpenStreetMap tags are not proof of official tourist-attraction
+    verification. Describe the source accurately.
+
+19. Never claim that a place is open, safe to visit, or bookable
+    unless the supplied data confirms it.
+
+20. Never invent transport durations, distances, fares, hotel rates,
+    attraction ticket prices, or restaurant prices.
+
+21. Do not label a suggested activity as a confirmed booking.
+
+22. If transport or accommodation prices are missing, show them as
+    unavailable and clearly mark the budget as partial.
+
+23. Do not describe the remaining budget as final until all essential
+    costs have been obtained.
+
+24. Do not claim that a suggested beach, fort, museum, or other place
+    is nearby unless its location or distance supports that claim.
+
+
+RETURN
+
+- Short trip overview.
+- Day-by-day itinerary aligned with the requested dates.
+- Practical transport and accommodation notes.
+- Relevant tourist places, with verification limitations where applicable.
+- Weather note only when valid for the requested destination and dates.
+- Exact budget breakdown copied from the Python result.
+- Missing-data warnings and practical next steps.
 """
 
+    # --------------------------------------------------
+    # 4. Generate itinerary using the configured LLM
+    # --------------------------------------------------
     try:
         itinerary = ask_llm(prompt)
+
         if not isinstance(itinerary, str) or not itinerary.strip():
             return {
                 **state,
-                "error": "Itinerary generation failed: the LLM returned an empty response.",
+                "error": (
+                    "Itinerary generation failed: "
+                    "the LLM returned an empty response."
+                ),
             }
-        return {**state, "itinerary": itinerary.strip(), "error": ""}
+
+        return {
+            **state,
+            "itinerary": itinerary.strip(),
+            "error": "",
+        }
+
     except Exception as exc:
-        return {**state, "error": f"Itinerary generation failed: {exc}"}
+        return {
+            **state,
+            "error": f"Itinerary generation failed: {exc}",
+        }
 
 
 def review_agent_node(state: TravelAgentState) -> TravelAgentState:
@@ -303,35 +616,33 @@ def review_agent_node(state: TravelAgentState) -> TravelAgentState:
     live_places = tool_data.get("live_places") or {}
     budget = state.get("budget_breakdown") or {}
 
-    requested_destination = str(state.get("destination", "")).strip().casefold()
+    requested_destination = str(state.get("destination", "")).strip()
     weather_location = live_weather.get("location") or {}
-    returned_location = str(
-        weather_location.get("name")
-        or live_weather.get("resolved_location")
-        or ""
-    ).strip().casefold()
-
-    # Basic mismatch guard. Exact/case-insensitive comparison is intentionally
-    # conservative; robust global disambiguation belongs in live_travel_data.py.
-    location_mismatch = bool(
-        returned_location
-        and requested_destination
-        and returned_location != requested_destination
-        and requested_destination not in returned_location
+    places_location = live_places.get("location") or live_places.get("resolved_location") or {}
+    weather_location_matches = _location_matches_destination(
+        requested_destination, weather_location
+    )
+    places_location_matches = _location_matches_destination(
+        requested_destination, places_location
+    )
+    trip_forecast, forecast_covers_trip = _forecast_for_trip(
+        live_weather.get("forecast"),
+        state.get("check_in"),
+        state.get("check_out"),
     )
 
     compact_data = {
-        "requested_destination": state.get("destination"),
+        "requested_destination": requested_destination,
         "weather_location": weather_location,
         "weather_status": live_weather.get("status"),
-        "weather_location_mismatch": location_mismatch,
-        "current_weather": live_weather.get("current"),
-        "forecast": live_weather.get("forecast", [])[:3]
-        if isinstance(live_weather.get("forecast"), list)
-        else [],
+        "weather_location_matches_requested_destination": weather_location_matches,
+        "trip_forecast_covers_entire_trip": bool(
+            weather_location_matches and forecast_covers_trip
+        ),
+        "trip_forecast": trip_forecast if weather_location_matches else [],
         "places_status": live_places.get("status"),
-        "places_location": live_places.get("location")
-        or live_places.get("resolved_location"),
+        "places_location": places_location,
+        "places_location_matches_requested_destination": places_location_matches,
         "places": [
             {
                 "name": place.get("name"),
@@ -339,7 +650,7 @@ def review_agent_node(state: TravelAgentState) -> TravelAgentState:
                     "verified_tourist_attraction", False
                 ),
             }
-            for place in (live_places.get("places") or [])[:5]
+            for place in ((live_places.get("places") or []) if places_location_matches else [])[:5]
             if isinstance(place, dict)
         ],
     }
@@ -387,9 +698,10 @@ RULES
 4. Never change any Python-calculated budget amount.
 5. Disclose missing transport/accommodation prices and sample data.
 6. Do not suggest flights; this project has no flight API.
-7. If weather location mismatches the requested destination, remove weather claims and state that destination-matched live weather was unavailable.
-8. Do not label unverified places as verified attractions.
-9. Return the corrected itinerary only.
+7. Only describe weather as a forecast for the trip dates if the location matches and the provider forecast covers the entire requested date range; otherwise say trip-date weather is unavailable.
+8. If weather/place location does not match the requested destination, remove those claims and flag the mismatch.
+9. Do not label unverified places as verified attractions.
+10. Return the corrected itinerary only.
 """
 
     try:
