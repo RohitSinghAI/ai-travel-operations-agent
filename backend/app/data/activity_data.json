@@ -1,0 +1,27 @@
+
+[
+  {
+    "city": "Goa",
+    "name": "Calangute Beach",
+    "category": "Beach",
+    "estimated_cost_per_person": 0,
+    "currency": "INR",
+    "is_live_quote": false
+  },
+  {
+    "city": "Goa",
+    "name": "Chapora Fort",
+    "category": "Sightseeing",
+    "estimated_cost_per_person": 0,
+    "currency": "INR",
+    "is_live_quote": false
+  },
+  {
+    "city": "Goa",
+    "name": "Local food experience",
+    "category": "Food",
+    "estimated_cost_per_person": 400,
+    "currency": "INR",
+    "is_live_quote": false
+  }
+]

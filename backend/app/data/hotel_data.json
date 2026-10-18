@@ -1,0 +1,19 @@
+
+[
+  {
+    "city": "Goa",
+    "name": "Sample Budget Guesthouse",
+    "room_type": "Double room",
+    "estimated_price_per_night": 1200,
+    "currency": "INR",
+    "is_live_quote": false
+  },
+  {
+    "city": "Goa",
+    "name": "Sample Budget Hostel",
+    "room_type": "Hostel bed",
+    "estimated_price_per_night": 600,
+    "currency": "INR",
+    "is_live_quote": false
+  }
+]

@@ -5,13 +5,15 @@ from backend.app.graph.workflow import travel_graph
 
 def generate_travel_plan(request: TravelRequest) -> dict:
     initial_state = {
-        "source": request.source,
-        "destination": request.destination,
-        "days": request.days,
-        "budget": request.budget,
-        "travelers": request.travelers,
-        "preferences": request.preferences,
-    }
+    "source": request.source,
+    "destination": request.destination,
+    "days": request.days,
+    "budget": request.budget,
+    "travelers": request.travelers,
+    "preferences": request.preferences,
+    "check_in": request.check_in.isoformat(),
+    "check_out": request.check_out.isoformat(),
+}
 
     result = travel_graph.invoke(initial_state)
 

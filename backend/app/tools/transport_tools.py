@@ -1,7 +1,7 @@
 
 import json
 from pathlib import Path
-
+from typing import Any
 
 DATA_FILE = (
     Path(__file__).resolve().parents[1]
@@ -10,33 +10,40 @@ DATA_FILE = (
 )
 
 
-def search_transport(source: str, destination: str) -> list[dict]:
-    """Search sample transport options between two cities."""
+def load_data() -> list[dict[str, Any]]:
     if not DATA_FILE.exists():
-        return []
+        raise FileNotFoundError(
+            f"Transport data file not found: {DATA_FILE}"
+        )
 
-    with DATA_FILE.open("r", encoding="utf-8") as file:
-        data = json.load(file)
+    raw = DATA_FILE.read_text(encoding="utf-8")
 
-    if isinstance(data, dict):
-        options = data.get("transport", data.get("options", []))
-    elif isinstance(data, list):
-        options = data
-    else:
-        return []
+    if not raw.strip():
+        raise ValueError(
+            f"Transport data file is empty: {DATA_FILE}"
+        )
 
-    source = source.strip().casefold()
-    destination = destination.strip().casefold()
+    data = json.loads(raw)
 
-    results = []
-    for option in options:
-        if not isinstance(option, dict):
-            continue
+    if not isinstance(data, list):
+        raise ValueError(
+            "transport_data.json must contain a JSON list."
+        )
 
-        origin = str(option.get("source", "")).casefold()
-        target = str(option.get("destination", "")).casefold()
+    return data
 
-        if origin == source and target == destination:
-            results.append(option)
 
-    return results
+def search_transport(
+    source: str,
+    destination: str,
+) -> list[dict[str, Any]]:
+    data = load_data()
+
+    return [
+        item
+        for item in data
+        if item.get("source", "").strip().casefold()
+        == source.strip().casefold()
+        and item.get("destination", "").strip().casefold()
+        == destination.strip().casefold()
+    ]

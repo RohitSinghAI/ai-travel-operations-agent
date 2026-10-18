@@ -1,0 +1,20 @@
+[
+  {
+    "source": "Hyderabad",
+    "destination": "Delhi",
+    "mode": "train",
+    "provider": "Sample Data",
+    "price": 1200,
+    "currency": "INR",
+    "is_live": false
+  },
+  {
+    "source": "Hyderabad",
+    "destination": "Delhi",
+    "mode": "flight",
+    "provider": "Sample Data",
+    "price": 4500,
+    "currency": "INR",
+    "is_live": false
+  }
+]
