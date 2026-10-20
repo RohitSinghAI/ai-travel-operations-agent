@@ -481,7 +481,6 @@ def _normalise_osm_place(item: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
-
 async def _fetch_overpass_places(
     lat: float, lon: float, radius_m: int, limit: int
 ) -> list[dict[str, Any]]:
@@ -513,6 +512,10 @@ out center tags;
                 response.raise_for_status()
                 data = response.json()
 
+            if not isinstance(data, dict):
+                errors.append(f"{url}: invalid response format")
+                continue
+
             places: list[dict[str, Any]] = []
             seen: set[str] = set()
 
@@ -525,17 +528,46 @@ out center tags;
                 if not name:
                     continue
 
-                key = name.casefold()
+                # Remove duplicate names, ignoring case and extra spaces.
+                key = " ".join(name.casefold().split())
                 if key in seen:
+                    continue
+
+                # Keep only places with a relevant OSM tourism/historic tag.
+                tags = item.get("tags") or {}
+                tourism = str(tags.get("tourism") or "").casefold()
+                historic = str(tags.get("historic") or "").casefold()
+                leisure = str(tags.get("leisure") or "").casefold()
+
+                allowed_tourism = {
+                    "attraction", "museum", "viewpoint", "gallery",
+                    "zoo", "theme_park", "aquarium", "artwork",
+                    "information",
+                }
+                allowed_historic = {
+                    "castle", "fort", "monument", "memorial",
+                    "archaeological_site", "ruins", "manor", "palace",
+                }
+
+                if not (
+                    tourism in allowed_tourism
+                    or historic in allowed_historic
+                    or leisure == "park"
+                ):
                     continue
 
                 seen.add(key)
                 place["source"] = "OpenStreetMap"
-                place["verified_tourist_attraction"] = True
+                place["verified_tourist_attraction"] = False
+                place["description"] = (
+                    "Mapped in OpenStreetMap with a tourism, historic, "
+                    "or park tag. Tourist suitability and current access "
+                    "have not been independently verified."
+                )
                 places.append(place)
 
             if places:
-                # Prefer nearby results when distance is available.
+                # Sort by distance if the normaliser provides it.
                 places.sort(
                     key=lambda p: (
                         p.get("distance_m")
@@ -545,7 +577,7 @@ out center tags;
                 )
                 return places[:limit]
 
-            errors.append(f"{url}: no named places returned")
+            errors.append(f"{url}: no named relevant places returned")
 
         except (httpx.HTTPError, ValueError, LiveDataError) as exc:
             errors.append(f"{url}: {type(exc).__name__}")
@@ -673,48 +705,81 @@ async def _fetch_wikipedia_places(
     return places
 
 
-
 async def _fetch_nominatim_places(
     city: str,
     limit: int,
+    expected_location: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    """
-    Search OpenStreetMap's Nominatim for named places using focused queries.
-    This is a fallback, not a guaranteed comprehensive tourist directory.
-    Nominatim's public service must be used sparingly (about one request/sec).
-    """
+    """Fetch relevant mapped tourist places and reject wrong-region results."""
+
     queries = [
-        f"tourist attractions in {city}",
-        f"beaches in {city}",
-        f"forts in {city}",
-        f"museum in {city}",
-        f"church in {city}",
-        f"waterfall in {city}",
-        f"viewpoint in {city}",
+        f"Calangute Beach, {city}",
+        f"Fort Aguada, {city}",
+        f"Basilica of Bom Jesus, {city}",
+        f"tourist attraction, {city}",
+        f"museum, {city}",
+        f"historic site, {city}",
     ]
+
+    expected_country = str(
+        expected_location.get("country_code") or ""
+    ).casefold()
+
+    expected_name = str(
+        expected_location.get("name") or ""
+    ).strip().casefold()
+
+    expected_region = str(
+        expected_location.get("admin1")
+        or expected_location.get("name")
+        or ""
+    ).strip().casefold()
+
+    allowed_categories = {
+        "attraction",
+        "museum",
+        "historic",
+        "archaeological_site",
+        "castle",
+        "fort",
+        "monument",
+        "memorial",
+        "artwork",
+        "gallery",
+        "beach",
+        "viewpoint",
+        "park",
+    }
+
     headers = {"User-Agent": USER_AGENT}
     found: list[dict[str, Any]] = []
     seen: set[str] = set()
 
-    async with httpx.AsyncClient(timeout=TIMEOUT, headers=headers) as client:
+    async with httpx.AsyncClient(
+        timeout=TIMEOUT,
+        headers=headers,
+    ) as client:
         for index, query in enumerate(queries):
             if index:
                 await asyncio.sleep(1.1)
+
             try:
                 response = await client.get(
                     "https://nominatim.openstreetmap.org/search",
                     params={
                         "q": query,
                         "format": "jsonv2",
-                        "limit": min(5, max(1, limit)),
+                        "limit": 10,
                         "addressdetails": 1,
                         "extratags": 1,
                     },
                 )
                 response.raise_for_status()
                 payload = response.json()
+
                 if not isinstance(payload, list):
                     continue
+
             except (httpx.HTTPError, ValueError):
                 continue
 
@@ -722,8 +787,52 @@ async def _fetch_nominatim_places(
                 name = str(item.get("name") or "").strip()
                 if not name:
                     continue
-                key = name.casefold()
-                if key in seen:
+
+                address = item.get("address") or {}
+                display_name = str(item.get("display_name") or "")
+                country_code = str(
+                    address.get("country_code") or ""
+                ).casefold()
+
+                # Reject results outside the expected country.
+                if expected_country and country_code != expected_country:
+                    continue
+
+                address_values = {
+                    str(address.get(key) or "").strip().casefold()
+                    for key in (
+                        "city",
+                        "town",
+                        "village",
+                        "municipality",
+                        "county",
+                        "state",
+                        "province",
+                        "region",
+                        "state_district",
+                    )
+                }
+
+                display_parts = {
+                    part.strip().casefold()
+                    for part in display_name.split(",")
+                }
+
+                # Ensure the result belongs to the requested region.
+                if (
+                    expected_name not in address_values
+                    and expected_name not in display_parts
+                    and expected_region not in address_values
+                    and expected_region not in display_parts
+                ):
+                    continue
+
+                category = str(
+                    item.get("type") or item.get("addresstype") or "place"
+                ).casefold()
+
+                # Exclude bus stations and unrelated place types.
+                if category not in allowed_categories:
                     continue
 
                 try:
@@ -732,20 +841,24 @@ async def _fetch_nominatim_places(
                 except (KeyError, TypeError, ValueError):
                     continue
 
-                category = str(item.get("type") or item.get("addresstype") or "place")
-                display_name = str(item.get("display_name") or "")
+                # Remove duplicate names even when coordinates differ slightly.
+                key = " ".join(name.casefold().split())
+                if key in seen:
+                    continue
+
                 found.append({
                     "name": name,
                     "category": category,
                     "description": (
-                        "Located through OpenStreetMap Nominatim. "
-                        "Tourist relevance and current visitor access are not independently verified."
+                        "Mapped in OpenStreetMap. Tourist suitability "
+                        "and current visitor access are not independently verified."
                     ),
                     "latitude": latitude,
                     "longitude": longitude,
-                    "website": None,
+                    "website": (item.get("extratags") or {}).get("website"),
                     "osm_url": (
-                        f"https://www.openstreetmap.org/{item.get('osm_type')}/{item.get('osm_id')}"
+                        f"https://www.openstreetmap.org/"
+                        f"{item.get('osm_type')}/{item.get('osm_id')}"
                         if item.get("osm_type") and item.get("osm_id")
                         else None
                     ),
@@ -753,12 +866,13 @@ async def _fetch_nominatim_places(
                     "source": "OpenStreetMap Nominatim",
                     "verified_tourist_attraction": False,
                 })
+
                 seen.add(key)
+
                 if len(found) >= limit:
                     return found[:limit]
 
     return found[:limit]
-
 
 
 async def get_tourist_places(
@@ -785,35 +899,42 @@ async def get_tourist_places(
         "longitude": lon,
     }
 
+    
     errors: dict[str, str] = {}
     places: list[dict[str, Any]] = []
     provider_used = None
 
-    # 1. Try OpenStreetMap / Overpass first.
+    # 1. Try destination-specific Nominatim searches first.
     try:
-        places = await _fetch_overpass_places(
-            lat=lat,
-            lon=lon,
-            radius_m=radius_m,
+        places = await _fetch_nominatim_places(
+            city=city,
             limit=limit,
+            expected_location=location,
         )
 
         if places:
-            provider_used = "OpenStreetMap / Overpass API"
+            provider_used = "OpenStreetMap Nominatim"
 
     except (LiveDataError, httpx.HTTPError, ValueError) as exc:
-        errors["overpass_error"] = str(exc)
+        errors["nominatim_error"] = str(exc)
 
-    # 2. Try Nominatim focused searches when Overpass is unavailable.
+    # 2. Use Overpass only if Nominatim returns no results.
     if not places:
         try:
-            places = await _fetch_nominatim_places(city=city, limit=limit)
-            if places:
-                provider_used = "OpenStreetMap Nominatim"
-        except (LiveDataError, httpx.HTTPError, ValueError) as exc:
-            errors["nominatim_error"] = str(exc)
+            places = await _fetch_overpass_places(
+                lat=lat,
+                lon=lon,
+                radius_m=radius_m,
+                limit=limit,
+            )
 
-    # 3. Last fallback: Wikipedia geosearch (may be blocked by its policy).
+            if places:
+                provider_used = "OpenStreetMap / Overpass API"
+
+        except (LiveDataError, httpx.HTTPError, ValueError) as exc:
+            errors["overpass_error"] = str(exc)
+
+    # 3. Wikipedia is the final fallback.
     if not places:
         try:
             places = await _fetch_wikipedia_places(
@@ -829,21 +950,6 @@ async def get_tourist_places(
         except (LiveDataError, httpx.HTTPError, ValueError) as exc:
             errors["wikipedia_error"] = str(exc)
 
-    # 3. Return a structured response if both sources fail.
-    if not places:
-        return {
-            "location": result_location,
-            "provider": "OpenStreetMap + Wikipedia",
-            "status": "unavailable",
-            "search_radius_m": radius_m,
-            "count": 0,
-            "places": [],
-            "message": (
-                "No suitable nearby places could be retrieved. "
-                "Try a more specific destination or retry later."
-            ),
-            **errors,
-        }
 
     # 4. Report the actual provider that returned the places.
     is_wikipedia = provider_used == "Wikipedia geosearch"

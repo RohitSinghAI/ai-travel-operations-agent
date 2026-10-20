@@ -1,19 +1,19 @@
 [
   {
     "source": "Hyderabad",
-    "destination": "Delhi",
+    "destination": "Goa",
     "mode": "train",
     "provider": "Sample Data",
-    "price": 1200,
+    "price": null,
     "currency": "INR",
     "is_live": false
   },
   {
     "source": "Hyderabad",
-    "destination": "Delhi",
-    "mode": "flight",
+    "destination": "Goa",
+    "mode": "bus",
     "provider": "Sample Data",
-    "price": 4500,
+    "price": null,
     "currency": "INR",
     "is_live": false
   }

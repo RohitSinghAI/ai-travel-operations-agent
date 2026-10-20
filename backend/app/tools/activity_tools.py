@@ -32,15 +32,13 @@ def load_data() -> list[dict[str, Any]]:
 
     return data
 
-
-def search_activities(
-    destination: str,
-) -> list[dict[str, Any]]:
+def search_activities(destination: str) -> list[dict[str, Any]]:
     data = load_data()
 
+    destination_name = destination.split(",")[0].strip().casefold()
+
     return [
-        item
-        for item in data
-        if item.get("city", "").strip().casefold()
-        == destination.strip().casefold()
+        item for item in data
+        if item.get("city", "").split(",")[0].strip().casefold()
+        == destination_name
     ]

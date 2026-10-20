@@ -63,7 +63,7 @@ function App() {
     };
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/travel/plan`, {
+      const response = await fetch(`${API_BASE_URL}/plan`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -457,6 +457,87 @@ function App() {
                     <p>No structured budget breakdown was returned.</p>
                   )}
                 </section>
+
+                {/* Live Tourist Places */}
+                {result.tool_data?.live_places && (
+                  <section className="panel content-panel">
+                    <div className="section-heading">
+                      <span className="section-icon">📍</span>
+                      <div>
+                        <h2>Live Tourist Places</h2>
+                        <p>
+                          Provider:{" "}
+                          {result.tool_data.live_places.provider || "Not specified"}
+                          {" · "}
+                          Status:{" "}
+                          {result.tool_data.live_places.status || "Not specified"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {(() => {
+                      const liveData = result.tool_data.live_places;
+                      const places = Array.isArray(liveData)
+                        ? liveData
+                        : Array.isArray(liveData.places)
+                          ? liveData.places
+                          : [];
+
+                      if (places.length === 0) {
+                        return (
+                          <p>
+                            No tourist places were returned for this destination.
+                          </p>
+                        );
+                      }
+
+                      return (
+                        <div className="places-grid">
+                          {places.map((place, index) => {
+                            const latitude =
+                              place.latitude ?? place.lat ?? place.coordinates?.lat;
+                            const longitude =
+                              place.longitude ?? place.lon ?? place.lng ?? place.coordinates?.lon;
+
+                            return (
+                              <article
+                                className="place-card"
+                                key={place.id || place.name || index}
+                              >
+                                <span className="place-category">
+                                  {formatLabel(place.category || "Tourist place")}
+                                </span>
+
+                                <h3>{place.name || "Unnamed place"}</h3>
+
+                                <p>
+                                  {place.description || "No description available."}
+                                </p>
+
+                                {latitude != null && longitude != null && (
+                                  <a
+                                    href={`https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=16/${latitude}/${longitude}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                  >
+                                    View on OpenStreetMap ↗
+                                  </a>
+                                )}
+
+                                {place.verified_tourist_attraction === false && (
+                                  <p className="place-warning">
+                                    Tourist suitability has not been independently
+                                    verified.
+                                  </p>
+                                )}
+                              </article>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </section>
+                )}
 
                 <section className="panel content-panel">
                   <div className="section-heading">
