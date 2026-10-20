@@ -6,11 +6,11 @@ import LiveTouristPlaces from "./components/LiveTouristPlaces.jsx";
 const INITIAL_FORM = {
   source: "Hyderabad",
   destination: "Goa",
-  days: 3,
   travelers: 2,
   budget: 15000,
-  check_in: "2026-11-10",
-  check_out: "2026-11-13",
+  start_date: "2026-11-10",
+  end_date: "2026-11-13",
+  currency: "INR",
   preferences: "beaches, local food",
 };
 
@@ -115,6 +115,16 @@ export default function App() {
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("itinerary");
 
+  const tripDays = useMemo(() => {
+    if (!form.start_date || !form.end_date) return 0;
+    const start = new Date(`${form.start_date}T00:00:00`);
+    const end = new Date(`${form.end_date}T00:00:00`);
+    const diff = end.getTime() - start.getTime();
+    return Number.isFinite(diff) && diff > 0
+      ? Math.round(diff / (1000 * 60 * 60 * 24))
+      : 0;
+  }, [form.start_date, form.end_date]);
+
   const livePlacesData = result?.tool_data?.live_places ?? result?.live_places ?? null;
   const itinerary = result?.itinerary ?? result?.plan ?? result?.travel_plan ?? null;
 
@@ -135,21 +145,30 @@ export default function App() {
     setError("");
     setResult(null);
 
-    if (new Date(form.check_out) <= new Date(form.check_in)) {
-      setError("Check-out date must be after check-in date.");
+    if (!form.start_date || !form.end_date || form.end_date <= form.start_date) {
+      setError("End date must be after start date.");
+      setLoading(false);
+      return;
+    }
+
+    if (tripDays > 30) {
+      setError("Trip duration cannot exceed 30 days.");
       setLoading(false);
       return;
     }
 
     try {
-      const response = await fetch("/plan", {
+      const response = await fetch("/api/travel/plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...form,
-          days: Number(form.days),
+          source: form.source.trim(),
+          destination: form.destination.trim(),
+          start_date: form.start_date,
+          end_date: form.end_date,
           travelers: Number(form.travelers),
           budget: Number(form.budget),
+          currency: form.currency || "INR",
           preferences: form.preferences
             .split(",")
             .map((item) => item.trim())
@@ -179,7 +198,7 @@ export default function App() {
       console.error("Travel plan request failed:", err);
       setError(
         err instanceof TypeError
-          ? "Cannot connect to FastAPI. Check that the backend is running on port 8000 and Vite proxies /plan."
+          ? "Cannot connect to FastAPI. Check that the backend is running on port 8000 and Vite proxies /api."
           : err.message || "Something went wrong while planning your trip."
       );
     } finally {
@@ -302,11 +321,13 @@ export default function App() {
                 <Field label="Destination">
                   <input required name="destination" value={form.destination} onChange={updateField} placeholder="Goa" className={inputClass} />
                 </Field>
-                <Field label="Duration (days)">
-                  <input required type="number" min="1" max="30" name="days" value={form.days} onChange={updateField} className={inputClass} />
+                <Field label="Trip duration">
+                  <div className={`${inputClass} bg-slate-50`} aria-live="polite">
+                    {tripDays > 0 ? `${tripDays} day${tripDays === 1 ? "" : "s"}` : "Choose valid dates"}
+                  </div>
                 </Field>
                 <Field label="Travelers">
-                  <input required type="number" min="1" max="50" name="travelers" value={form.travelers} onChange={updateField} className={inputClass} />
+                  <input required type="number" min="1" max="20" name="travelers" value={form.travelers} onChange={updateField} className={inputClass} />
                 </Field>
                 <Field label="Total budget (₹)">
                   <input required type="number" min="1" name="budget" value={form.budget} onChange={updateField} className={inputClass} />
@@ -314,11 +335,11 @@ export default function App() {
                 <Field label="Travel preferences">
                   <input name="preferences" value={form.preferences} onChange={updateField} placeholder="Beaches, food, nature" className={inputClass} />
                 </Field>
-                <Field label="Check-in date">
-                  <input required type="date" name="check_in" value={form.check_in} onChange={updateField} className={inputClass} />
+                <Field label="Start date">
+                  <input required type="date" name="start_date" value={form.start_date} onChange={updateField} className={inputClass} />
                 </Field>
-                <Field label="Check-out date">
-                  <input required type="date" name="check_out" min={form.check_in} value={form.check_out} onChange={updateField} className={inputClass} />
+                <Field label="End date">
+                  <input required type="date" name="end_date" min={form.start_date} value={form.end_date} onChange={updateField} className={inputClass} />
                 </Field>
               </div>
 
@@ -363,7 +384,7 @@ export default function App() {
                 <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-800">
                   <h3 className="font-extrabold">We couldn't create this trip</h3>
                   <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6">{error}</p>
-                  <p className="mt-3 text-xs">Check the FastAPI terminal and the Vite /plan proxy configuration.</p>
+                  <p className="mt-3 text-xs">Check the FastAPI terminal and the Vite /api proxy configuration.</p>
                 </div>
               )}
 
@@ -374,7 +395,7 @@ export default function App() {
                       <div>
                         <p className="text-xs font-bold uppercase tracking-[.2em] text-violet-300">Your trip overview</p>
                         <h3 className="mt-3 text-2xl font-black sm:text-3xl">{form.source} <span className="text-violet-300">→</span> {form.destination}</h3>
-                        <p className="mt-3 text-sm text-white/70">{form.days} days · {form.travelers} travelers · {form.check_in} to {form.check_out}</p>
+                        <p className="mt-3 text-sm text-white/70">{tripDays} days · {form.travelers} travelers · {form.start_date} to {form.end_date}</p>
                       </div>
                       <div className="rounded-2xl border border-white/10 bg-white/10 p-4">
                         <p className="text-xs text-white/60">Your budget</p>
