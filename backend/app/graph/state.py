@@ -8,8 +8,13 @@ class TravelAgentState(TypedDict, total=False):
     destination: str
     days: int
     budget: float
+    currency: str
     travelers: int
     preferences: list[str]
+
+    # Trip dates
+    start_date: str
+    end_date: str
 
     # Raw MCP and live-provider responses
     tool_data: dict[str, Any]

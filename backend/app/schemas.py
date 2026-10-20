@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 class TravelRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
+    # Trip details
     source: str = Field(min_length=2, max_length=100)
     destination: str = Field(min_length=2, max_length=100)
 
@@ -16,7 +17,7 @@ class TravelRequest(BaseModel):
     travelers: int = Field(default=1, ge=1, le=50)
     preferences: list[str] = Field(default_factory=list)
 
-    # Hotel search dates
+    # Hotel search and travel dates
     check_in: date
     check_out: date
 
@@ -40,6 +41,11 @@ class TravelResponse(BaseModel):
     days: int
     travelers: int
 
+    # Return selected trip dates to the frontend
+    check_in: date | None = None
+    check_out: date | None = None
+
+    # Additional travel planning results
     tool_data: dict[str, Any] = Field(default_factory=dict)
     budget_breakdown: dict[str, Any] = Field(default_factory=dict)
     budget_analysis: str = ""

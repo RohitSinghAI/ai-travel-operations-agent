@@ -374,8 +374,8 @@ def itinerary_agent_node(state: TravelAgentState) -> TravelAgentState:
 
     trip_forecast, forecast_covers_trip = _forecast_for_trip(
         live_weather.get("forecast"),
-        state.get("check_in"),
-        state.get("check_out"),
+        state.get("start_date"),
+        state.get("end_date"),
     )
 
     weather_for_prompt = {
@@ -457,11 +457,11 @@ You are an AI travel itinerary planner. Be practical, transparent, and factual.
 TRIP DETAILS
 - Source: {state.get("source", "")}
 - Destination: {destination}
-- Start date: {state.get("check_in", "Not provided")}
-- End date: {state.get("check_out", "Not provided")}
+- Start date: {state.get("start_date", "Not provided")}
+- End date: {state.get("end_date", "Not provided")}
 - Duration: {state.get("days", 1)} days
 - Travelers: {state.get("travelers", 1)}
-- Total budget: INR {state.get("budget", 0)}
+- Total budget: {state.get("currency", "INR")} {state.get("budget", 0)}
 - Preferences: {state.get("preferences", [])}
 
 SPECIALIST AGENT OUTPUTS
@@ -627,8 +627,8 @@ def review_agent_node(state: TravelAgentState) -> TravelAgentState:
     )
     trip_forecast, forecast_covers_trip = _forecast_for_trip(
         live_weather.get("forecast"),
-        state.get("check_in"),
-        state.get("check_out"),
+        state.get("start_date"),
+        state.get("end_date"),
     )
 
     compact_data = {
@@ -677,8 +677,8 @@ You are a travel itinerary quality reviewer.
 TRIP
 - Source: {state.get("source", "")}
 - Destination: {state.get("destination", "")}
-- Start date: {state.get("check_in", "Not provided")}
-- End date: {state.get("check_out", "Not provided")}
+- Start date: {state.get("start_date", "Not provided")}
+- End date: {state.get("end_date", "Not provided")}
 - Days: {state.get("days", 1)}
 - Travelers: {state.get("travelers", 1)}
 
