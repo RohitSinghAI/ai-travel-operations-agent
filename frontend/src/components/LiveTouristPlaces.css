@@ -1,0 +1,525 @@
+
+.live-places-section {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.live-places-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 26px;
+}
+
+.live-places-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  min-width: 0;
+}
+
+.live-places-heading-icon {
+  width: 43px;
+  height: 43px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: #edf2ff;
+  font-size: 21px;
+}
+
+.live-places-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.live-places-title-row h2 {
+  margin: 0;
+  color: #12213f;
+  font-size: 21px;
+  font-weight: 750;
+  letter-spacing: -0.5px;
+}
+
+.live-places-heading > div > p {
+  margin: 7px 0 0;
+  color: #7a879e;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.live-places-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border: 1px solid #b9efd8;
+  border-radius: 20px;
+  background: #ecfdf5;
+  color: #08794f;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.live-places-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+}
+
+.live-places-count {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.live-places-count strong {
+  color: #285cf5;
+  font-size: 26px;
+  line-height: 1.2;
+}
+
+.live-places-count span {
+  margin-top: 4px;
+  color: #8390a5;
+  font-size: 11px;
+}
+
+.live-places-toolbar {
+  display: grid;
+  gap: 15px;
+  margin-bottom: 24px;
+}
+
+.live-places-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1px solid #e1e7f1;
+  border-radius: 12px;
+  background: #fff;
+  color: #8190a9;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.live-places-search:focus-within {
+  border-color: #4774ff;
+  box-shadow: 0 0 0 3px rgb(71 116 255 / 10%);
+}
+
+.live-places-search > span {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.live-places-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #172747;
+  font: inherit;
+  font-size: 13px;
+}
+
+.live-places-search input::placeholder {
+  color: #9aa5b8;
+}
+
+.live-places-clear {
+  border: 0;
+  background: transparent;
+  color: #71809a;
+  cursor: pointer;
+  font-size: 22px;
+}
+
+.live-places-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.live-places-filter {
+  padding: 8px 13px;
+  border: 1px solid #e1e7f1;
+  border-radius: 9px;
+  background: #fff;
+  color: #5f6f89;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  transition: all 0.2s ease;
+}
+
+.live-places-filter:hover {
+  border-color: #9db4ff;
+  color: #285cf5;
+}
+
+.live-places-filter.active {
+  border-color: #2e60f4;
+  background: #2e60f4;
+  color: #fff;
+  box-shadow: 0 4px 10px rgb(46 96 244 / 16%);
+}
+
+.live-places-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.live-place-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #e4eaf4;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 3px 12px rgb(25 47 89 / 3%);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.live-place-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 25px rgb(25 47 89 / 9%);
+}
+
+.live-place-art {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 135px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 80% 15%, rgb(255 255 255 / 80%), transparent 35%),
+    linear-gradient(135deg, #dce9ff, #eff4ff);
+}
+
+.live-place-art::before,
+.live-place-art::after {
+  position: absolute;
+  content: "";
+  width: 180px;
+  height: 180px;
+  border: 1px solid rgb(255 255 255 / 55%);
+  border-radius: 50%;
+}
+
+.live-place-art::before {
+  top: -110px;
+  left: -55px;
+}
+
+.live-place-art::after {
+  right: -90px;
+  bottom: -130px;
+  width: 230px;
+  height: 230px;
+}
+
+.live-place-art-beach {
+  background: linear-gradient(135deg, #c7eff5, #e2f5ff 55%, #d8e9ff);
+}
+
+.live-place-art-museum,
+.live-place-art-attraction {
+  background: linear-gradient(135deg, #f3e8ff, #e5eaff);
+}
+
+.live-place-art-park {
+  background: linear-gradient(135deg, #d5f7e7, #eaf9ed);
+}
+
+.live-place-art-viewpoint {
+  background: linear-gradient(135deg, #ffedce, #ffe5e8);
+}
+
+.live-place-art-icon {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 67px;
+  height: 67px;
+  border: 1px solid rgb(255 255 255 / 85%);
+  border-radius: 22px;
+  background: rgb(255 255 255 / 78%);
+  box-shadow: 0 8px 24px rgb(33 64 120 / 8%);
+  font-size: 32px;
+}
+
+.live-place-number {
+  position: absolute;
+  top: 13px;
+  left: 14px;
+  color: rgb(30 54 99 / 55%);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.live-place-category {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 1;
+  padding: 6px 9px;
+  border: 1px solid rgb(255 255 255 / 75%);
+  border-radius: 7px;
+  background: rgb(255 255 255 / 88%);
+  color: #34476a;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.live-place-content {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+.live-place-content h3 {
+  margin: 0;
+  color: #172747;
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.live-place-address {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 9px 0 0;
+  color: #8490a5;
+  font-size: 11px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.live-place-address span {
+  margin-right: 5px;
+  color: #416cf6;
+}
+
+.live-place-description {
+  display: -webkit-box;
+  overflow: hidden;
+  min-height: 54px;
+  margin: 12px 0;
+  color: #5f6e86;
+  font-size: 12px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.live-place-coordinates {
+  margin: 0 0 12px;
+  color: #8794a9;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-place-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 13px;
+  border-top: 1px solid #edf0f6;
+}
+
+.live-place-source {
+  color: #8995a9;
+  font-size: 10px;
+}
+
+.live-place-map-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 11px;
+  border: 1px solid #dbe5ff;
+  border-radius: 8px;
+  background: #f0f4ff;
+  color: #285cf5;
+  font-size: 11px;
+  font-weight: 750;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.live-place-map-link:hover {
+  border-color: #285cf5;
+  background: #285cf5;
+  color: #fff;
+}
+
+.live-place-no-map {
+  color: #9a6a29;
+  font-size: 10px;
+}
+
+.live-place-disclaimer {
+  margin: 12px 0 0;
+  padding: 9px;
+  border-radius: 8px;
+  background: #fff8e9;
+  color: #94611b;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.live-places-footer-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 22px;
+  padding: 13px 15px;
+  border: 1px solid #e3eaff;
+  border-radius: 11px;
+  background: #f5f7ff;
+  color: #5e6f92;
+}
+
+.live-places-footer-note > span {
+  color: #3565ef;
+  font-size: 16px;
+}
+
+.live-places-footer-note p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.live-places-attribution {
+  margin: 12px 0 0;
+  color: #929db0;
+  font-size: 10px;
+  text-align: right;
+}
+
+.live-places-attribution a {
+  color: #6075a4;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.live-places-empty {
+  padding: 38px 16px;
+  text-align: center;
+}
+
+.live-places-empty-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  margin-bottom: 12px;
+  border-radius: 17px;
+  background: #edf2ff;
+  font-size: 25px;
+}
+
+.live-places-empty h3 {
+  margin: 0;
+  color: #172747;
+  font-size: 16px;
+}
+
+.live-places-empty p {
+  margin: 8px 0 0;
+  color: #8290a7;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.live-places-reset {
+  margin-top: 16px;
+  padding: 9px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: #2e60f4;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (max-width: 1100px) {
+  .live-places-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 650px) {
+  .live-places-header {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .live-places-heading {
+    gap: 9px;
+  }
+
+  .live-places-heading-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+    font-size: 18px;
+  }
+
+  .live-places-title-row h2 {
+    font-size: 17px;
+  }
+
+  .live-places-live-badge {
+    font-size: 8px;
+  }
+
+  .live-places-count strong {
+    font-size: 21px;
+  }
+
+  .live-places-count span {
+    font-size: 10px;
+  }
+
+  .live-places-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .live-place-art {
+    min-height: 120px;
+  }
+
+  .live-place-description {
+    min-height: 0;
+  }
+
+  .live-places-filter {
+    padding: 8px 10px;
+  }
+}

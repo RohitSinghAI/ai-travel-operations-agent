@@ -1,126 +1,314 @@
+import { useMemo, useState } from "react";
+import "./LiveTouristPlaces.css";
 
-import React from "react";
+const CATEGORIES = [
+  "all",
+  "beach",
+  "attraction",
+  "museum",
+  "park",
+  "viewpoint",
+];
 
-export default function LiveTouristPlaces({ livePlaces }) {
-  const places = Array.isArray(livePlaces?.places)
-    ? livePlaces.places
-    : [];
+function normalizeCategory(value) {
+  return String(value || "other").trim().toLowerCase();
+}
 
-  const isLive = livePlaces?.status === "live";
+function formatCategory(value) {
+  return normalizeCategory(value)
+    .split(/[\s_-]+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
 
-  if (!livePlaces) {
-    return null;
+function getMapUrl(place) {
+  if (place.osm_url) return place.osm_url;
+
+  const lat = place.latitude ?? place.lat;
+  const lon = place.longitude ?? place.lon ?? place.lng;
+
+  if (lat == null || lon == null) return null;
+
+  return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=16/${lat}/${lon}`;
+}
+
+export default function LiveTouristPlaces({
+  liveData,
+  loading = false,
+  error = "",
+}) {
+  const [search, setSearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState("all");
+
+  const places = Array.isArray(liveData)
+    ? liveData
+    : Array.isArray(liveData?.places)
+      ? liveData.places
+      : [];
+
+  const availableCategories = useMemo(() => {
+    const found = [...new Set(places.map((place) => normalizeCategory(place.category)))];
+    return [
+      "all",
+      ...CATEGORIES.filter(
+        (category) => category !== "all" && found.includes(category)
+      ),
+      ...found.filter((category) => !CATEGORIES.includes(category)),
+    ];
+  }, [places]);
+
+  const filteredPlaces = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return places.filter((place) => {
+      const category = normalizeCategory(place.category);
+      const matchesCategory =
+        activeCategory === "all" || category === activeCategory;
+
+      const searchableText = [
+        place.name,
+        place.category,
+        place.description,
+        place.display_name,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return matchesCategory && searchableText.includes(query);
+    });
+  }, [places, search, activeCategory]);
+
+  if (loading) {
+    return (
+      <section className="panel content-panel live-places-section">
+        <div className="live-places-loading" role="status" aria-live="polite">
+          <span className="live-places-spinner" />
+          <div>
+            <h3>Loading tourist places...</h3>
+            <p>Fetching map records for your destination.</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="panel content-panel live-places-section">
+        <div className="live-places-error" role="alert">
+          <span className="live-places-empty-icon">⚠️</span>
+          <h3>Could not load tourist places</h3>
+          <p>{typeof error === "string" ? error : JSON.stringify(error)}</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (!liveData) {
+    return (
+      <section className="panel content-panel live-places-section">
+        <div className="live-places-empty">
+          <span className="live-places-empty-icon">📍</span>
+          <h3>Live places not loaded yet</h3>
+          <p>Generate a travel plan to discover places at your destination.</p>
+        </div>
+      </section>
+    );
   }
 
   return (
-    <section className="my-8">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">
-            Explore Tourist Places
-          </h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Places mapped for your destination
-          </p>
+    <section className="panel content-panel live-places-section">
+      <div className="live-places-header">
+        <div className="live-places-heading">
+          <span className="live-places-heading-icon">📍</span>
+
+          <div>
+            <div className="live-places-title-row">
+              <h2>Explore Tourist Places</h2>
+              <span className="live-places-live-badge">
+                <span className="live-places-live-dot" />
+                {liveData.status === "live" ? "LIVE DATA" : "MAP DATA"}
+              </span>
+            </div>
+
+            <p>
+              Discover places and open their locations on OpenStreetMap.
+            </p>
+          </div>
         </div>
 
-        <span
-          className={`rounded-full px-3 py-1 text-sm font-medium ${
-            isLive
-              ? "bg-green-100 text-green-700"
-              : "bg-amber-100 text-amber-700"
-          }`}
+        <div className="live-places-count">
+          <strong>{liveData.count ?? places.length}</strong>
+          <span>places found</span>
+        </div>
+      </div>
+
+      <div className="live-places-toolbar">
+        <label className="live-places-search">
+          <span aria-hidden="true">⌕</span>
+          <input
+            type="search"
+            placeholder="Search places, museums, beaches..."
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            aria-label="Search tourist places"
+          />
+
+          {search && (
+            <button
+              type="button"
+              className="live-places-clear"
+              onClick={() => setSearch("")}
+              aria-label="Clear search"
+            >
+              ×
+            </button>
+          )}
+        </label>
+
+        <div
+          className="live-places-filters"
+          role="group"
+          aria-label="Filter places by category"
         >
-          {isLive ? "Live data" : "Data unavailable"}
-        </span>
-      </div>
-
-      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-500">Places found</p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">
-            {places.length}
-          </p>
-        </div>
-
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-500">Data provider</p>
-          <p className="mt-1 text-sm font-semibold text-gray-800">
-            {livePlaces.provider || "Not available"}
-          </p>
+          {availableCategories.map((category) => (
+            <button
+              type="button"
+              key={category}
+              className={`live-places-filter ${
+                activeCategory === category ? "active" : ""
+              }`}
+              onClick={() => setActiveCategory(category)}
+              aria-pressed={activeCategory === category}
+            >
+              {category === "all" ? "All places" : formatCategory(category)}
+            </button>
+          ))}
         </div>
       </div>
 
-      {!places.length ? (
-        <div className="rounded-xl border border-dashed p-8 text-center">
-          <p className="font-medium text-gray-700">
-            No tourist places available
-          </p>
-          <p className="mt-2 text-sm text-gray-500">
-            Try again later or check another destination.
-          </p>
+      {filteredPlaces.length === 0 ? (
+        <div className="live-places-empty">
+          <span className="live-places-empty-icon">🔎</span>
+          <h3>No places found</h3>
+          <p>Try another search or select a different category.</p>
+
+          <button
+            type="button"
+            className="live-places-reset"
+            onClick={() => {
+              setSearch("");
+              setActiveCategory("all");
+            }}
+          >
+            Clear filters
+          </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {places.map((place, index) => {
-            const mapUrl =
-              place.osm_url ||
-              `https://www.openstreetmap.org/?mlat=${encodeURIComponent(
-                place.latitude
-              )}&mlon=${encodeURIComponent(place.longitude)}#map=16/${encodeURIComponent(
-                place.latitude
-              )}/${encodeURIComponent(place.longitude)}`;
+        <div className="live-places-grid">
+          {filteredPlaces.map((place, index) => {
+            const mapUrl = getMapUrl(place);
+            const category = normalizeCategory(place.category);
+            const lat = place.latitude ?? place.lat;
+            const lon = place.longitude ?? place.lon ?? place.lng;
 
             return (
               <article
-                key={`${place.name}-${place.latitude}-${place.longitude}-${index}`}
-                className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+                className="live-place-card"
+                key={place.id || place.osm_id || place.osm_url || `${place.name}-${index}`}
               >
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {place.name}
-                  </h3>
+                <div className={`live-place-art live-place-art-${category.replace(/[^a-z0-9_-]/g, "")}`}>
+                  <span className="live-place-art-icon">
+                    {category === "beach"
+                      ? "🏖️"
+                      : category === "museum"
+                        ? "🏛️"
+                        : category === "park"
+                          ? "🌳"
+                          : category === "viewpoint"
+                            ? "🌄"
+                            : category === "attraction"
+                              ? "🏛️"
+                              : "📍"}
+                  </span>
 
-                  <span className="shrink-0 rounded-lg bg-blue-50 px-2 py-1 text-xs font-medium capitalize text-blue-700">
-                    {place.category || "Place"}
+                  <span className="live-place-number">
+                    {(index + 1).toString().padStart(2, "0")}
+                  </span>
+
+                  <span className="live-place-category">
+                    {formatCategory(category)}
                   </span>
                 </div>
 
-                <p className="mb-4 text-sm leading-6 text-gray-600">
-                  {place.description ||
-                    "Place information from OpenStreetMap."}
-                </p>
+                <div className="live-place-content">
+                  <h3>{place.name || "Unnamed place"}</h3>
 
-                {Number.isFinite(Number(place.latitude)) &&
-                  Number.isFinite(Number(place.longitude)) && (
-                    <p className="mb-4 text-xs text-gray-500">
-                      Coordinates: {place.latitude}, {place.longitude}
+                  <p className="live-place-address">
+                    <span aria-hidden="true">⌖</span>
+                    {place.display_name || "Location listed on OpenStreetMap"}
+                  </p>
+
+                  <p className="live-place-description">
+                    {place.description ||
+                      "View the map record for more location details."}
+                  </p>
+
+                  {lat != null && lon != null && (
+                    <p className="live-place-coordinates">
+                      {Number(lat).toFixed(4)}, {Number(lon).toFixed(4)}
                     </p>
                   )}
 
-                <a
-                  href={mapUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
-                >
-                  View on OpenStreetMap ↗
-                </a>
+                  <div className="live-place-footer">
+                    <span className="live-place-source">OpenStreetMap</span>
 
-                <p className="mt-4 border-t pt-3 text-xs text-amber-700">
-                  {place.verified_tourist_attraction === true
-                    ? "Marked as verified by the data provider."
-                    : "Tourist suitability and current visitor access have not been independently verified."}
-                </p>
+                    {mapUrl ? (
+                      <a
+                        className="live-place-map-link"
+                        href={mapUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        View map <span aria-hidden="true">↗</span>
+                      </a>
+                    ) : (
+                      <span className="live-place-no-map">Map unavailable</span>
+                    )}
+                  </div>
+
+                  {place.verified_tourist_attraction === false && (
+                    <p className="live-place-disclaimer">
+                      Tourist suitability and current access are not
+                      independently verified.
+                    </p>
+                  )}
+                </div>
               </article>
             );
           })}
         </div>
       )}
 
-      <p className="mt-4 text-xs text-gray-500">
-        Map data © OpenStreetMap contributors. Places and access information
-        may be incomplete or outdated.
+      <div className="live-places-footer-note">
+        <span aria-hidden="true">ⓘ</span>
+        <p>
+          Data provider: {liveData.provider || "OpenStreetMap"}. Map records do
+          not confirm opening hours, entry fees or current visitor access.
+          Please verify these before travelling.
+        </p>
+      </div>
+
+      <p className="live-places-attribution">
+        Map data ©{" "}
+        <a
+          href="https://www.openstreetmap.org/copyright"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          OpenStreetMap contributors
+        </a>
       </p>
     </section>
   );
