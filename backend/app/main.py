@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from backend.app.api.routes import health, travel
 from backend.app.api.routes import live_data
 
+
 app = FastAPI(
     title="AI Travel Operations Agent",
     description=(
@@ -18,11 +19,27 @@ app = FastAPI(
     version="1.0.0",
 )
 
+
+# --------------------------------------------------
+# CORS CONFIGURATION
+# --------------------------------------------------
+
+# Load additional frontend origins from environment variables.
 origins = [
     origin.strip().rstrip("/")
     for origin in os.getenv("FRONTEND_ORIGINS", "").split(",")
     if origin.strip()
 ]
+
+# Allow local React/Vite development servers.
+local_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+for origin in local_origins:
+    if origin not in origins:
+        origins.append(origin)
 
 app.add_middleware(
     CORSMiddleware,
@@ -32,13 +49,27 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"],
 )
 
+
+# --------------------------------------------------
+# API ROUTERS
+# --------------------------------------------------
+
 app.include_router(health.router)
 app.include_router(travel.router)
 app.include_router(live_data.router)
 
+
+# --------------------------------------------------
+# FRONTEND FILE CONFIGURATION
+# --------------------------------------------------
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 FRONTEND_FILE = PROJECT_ROOT / "frontend" / "index.html"
 
+
+# --------------------------------------------------
+# ROOT ENDPOINT
+# --------------------------------------------------
 
 @app.get("/", include_in_schema=False)
 def root():
@@ -48,6 +79,22 @@ def root():
         "health": "/health",
     }
 
+
+# --------------------------------------------------
+# HEALTH CHECK ALIAS
+# --------------------------------------------------
+
+@app.get("/health-check", include_in_schema=False)
+def health_check_alias():
+    return {
+        "status": "ok",
+        "message": "AI Travel Operations Agent is running",
+    }
+
+
+# --------------------------------------------------
+# FRONTEND ENDPOINT
+# --------------------------------------------------
 
 @app.get("/ui", include_in_schema=False)
 def frontend():
