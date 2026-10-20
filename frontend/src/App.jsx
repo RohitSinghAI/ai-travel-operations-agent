@@ -12,6 +12,8 @@ const initialForm = {
   travelers: 2,
   budget: 15000,
   preferences: "beaches, local food",
+  check_in: "2026-11-10",
+  check_out: "2026-11-13",
 };
 
 function formatCurrency(value) {
@@ -25,30 +27,51 @@ function formatCurrency(value) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-    maximumFractionDigits: 2,
+    maximumFractionDigits: 0,
   }).format(amount);
 }
 
 function formatLabel(value) {
-  return value.replaceAll("_", " ");
+  return String(value).replaceAll("_", " ");
 }
 
-function App() {
+function getPlaces(liveData) {
+  if (Array.isArray(liveData)) return liveData;
+  if (Array.isArray(liveData?.places)) return liveData.places;
+  return [];
+}
+
+export default function App() {
   const [form, setForm] = useState(initialForm);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [placesLoading, setPlacesLoading] = useState(false);
   const [error, setError] = useState("");
+  const [placesError, setPlacesError] = useState("");
 
   function handleChange(event) {
     const { name, value } = event.target;
-    setForm((previous) => ({ ...previous, [name]: value }));
+
+    setForm((previous) => ({
+      ...previous,
+      [name]: ["days", "travelers", "budget"].includes(name)
+        ? Number(value)
+        : value,
+    }));
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
     setLoading(true);
     setError("");
+    setPlacesError("");
     setResult(null);
+
+    if (form.check_out <= form.check_in) {
+      setError("Check-out date must be after check-in date.");
+      setLoading(false);
+      return;
+    }
 
     const payload = {
       source: form.source.trim(),
@@ -60,12 +83,16 @@ function App() {
         .split(",")
         .map((item) => item.trim())
         .filter(Boolean),
+      check_in: form.check_in,
+      check_out: form.check_out,
     };
 
     try {
       const response = await fetch(`${API_BASE_URL}/plan`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(payload),
       });
 
@@ -76,18 +103,52 @@ function App() {
           typeof data.detail === "string"
             ? data.detail
             : Array.isArray(data.detail)
-              ? data.detail.map((item) => item.msg || JSON.stringify(item)).join(", ")
+              ? data.detail
+                  .map((item) => item.msg || JSON.stringify(item))
+                  .join(", ")
               : JSON.stringify(data.detail || data) ||
-                "Unable to generate the travel plan.";
+                "Unable to generate travel plan.";
 
         throw new Error(message);
       }
 
       setResult(data);
+
+      // Fetch live tourist places separately from the verified backend route.
+      setPlacesLoading(true);
+
+      try {
+        const placesUrl =
+          `${API_BASE_URL}/api/live/places?city=` +
+          encodeURIComponent(form.destination.trim());
+
+        const placesResponse = await fetch(placesUrl);
+        const placesData = await placesResponse.json().catch(() => ({}));
+
+        if (!placesResponse.ok) {
+          throw new Error(
+            placesData.detail || "Could not load live tourist places."
+          );
+        }
+
+        setResult((previous) => ({
+          ...previous,
+          tool_data: {
+            ...(previous?.tool_data || {}),
+            live_places: placesData,
+          },
+        }));
+      } catch (placesErr) {
+        setPlacesError(
+          placesErr.message || "Could not load live tourist places."
+        );
+      } finally {
+        setPlacesLoading(false);
+      }
     } catch (err) {
       setError(
         err.message ||
-          "Could not connect to the backend. Check whether FastAPI is running."
+          "Could not connect to the backend. Check FastAPI and CORS settings."
       );
     } finally {
       setLoading(false);
@@ -97,29 +158,30 @@ function App() {
   function downloadItinerary() {
     if (!result) return;
 
-    const breakdown = result.budget_breakdown || {};
-
     const content = [
       `Travel Plan: ${result.source} to ${result.destination}`,
       `Duration: ${result.days} days`,
       `Travelers: ${result.travelers}`,
       `Budget: ${formatCurrency(result.budget)}`,
+      `Check-in: ${form.check_in}`,
+      `Check-out: ${form.check_out}`,
       "",
       "ITINERARY",
       result.itinerary || "No itinerary available.",
       "",
       "BUDGET BREAKDOWN",
-      JSON.stringify(breakdown, null, 2),
+      JSON.stringify(result.budget_breakdown || {}, null, 2),
       "",
-      "TRAVEL TOOL DATA",
-      JSON.stringify(result.tool_data || {}, null, 2),
+      "LIVE TOURIST PLACES",
+      JSON.stringify(result.tool_data?.live_places || {}, null, 2),
       "",
-      "DISCLAIMER: Prices may be estimates or sample data. Live availability and bookings are not guaranteed.",
+      "Prices may be estimates. Live availability and bookings are not guaranteed.",
     ].join("\n");
 
     const blob = new Blob([content], {
       type: "text/plain;charset=utf-8",
     });
+
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
 
@@ -133,6 +195,8 @@ function App() {
 
   const breakdown = result?.budget_breakdown;
   const lineItems = breakdown?.line_items || {};
+  const liveData = result?.tool_data?.live_places;
+  const places = getPlaces(liveData);
 
   return (
     <div className="app-shell">
@@ -155,8 +219,8 @@ function App() {
           <p className="eyebrow">YOUR PERSONAL TRAVEL ASSISTANT</p>
           <h1>Plan your next adventure.</h1>
           <p className="hero-description">
-            Create a personalized itinerary and estimate your travel costs
-            with AI-powered planning.
+            Create a personalized itinerary and explore map-based tourist
+            places with AI-powered planning.
           </p>
         </section>
 
@@ -179,7 +243,6 @@ function App() {
                   value={form.source}
                   onChange={handleChange}
                   minLength={2}
-                  maxLength={100}
                   required
                 />
               </div>
@@ -192,7 +255,6 @@ function App() {
                   value={form.destination}
                   onChange={handleChange}
                   minLength={2}
-                  maxLength={100}
                   required
                 />
               </div>
@@ -236,8 +298,33 @@ function App() {
                     name="budget"
                     type="number"
                     min="1"
-                    step="100"
                     value={form.budget}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="field-row">
+                <div className="field">
+                  <label htmlFor="check_in">Check-in</label>
+                  <input
+                    id="check_in"
+                    name="check_in"
+                    type="date"
+                    value={form.check_in}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+
+                <div className="field">
+                  <label htmlFor="check_out">Check-out</label>
+                  <input
+                    id="check_out"
+                    name="check_out"
+                    type="date"
+                    value={form.check_out}
                     onChange={handleChange}
                     required
                   />
@@ -262,14 +349,7 @@ function App() {
                 type="submit"
                 disabled={loading}
               >
-                {loading ? (
-                  <>
-                    <span className="spinner" />
-                    Creating your trip...
-                  </>
-                ) : (
-                  <>✦ Generate travel plan</>
-                )}
+                {loading ? "Creating your trip..." : "✦ Generate travel plan"}
               </button>
 
               <div className="disclaimer">
@@ -287,9 +367,7 @@ function App() {
               <div className="error-banner" role="alert">
                 <strong>Something went wrong</strong>
                 <p>{error}</p>
-                <small>
-                  Check the FastAPI terminal and API response for details.
-                </small>
+                <small>Check the FastAPI terminal for details.</small>
               </div>
             )}
 
@@ -297,10 +375,7 @@ function App() {
               <div className="panel loading-panel">
                 <span className="large-spinner" />
                 <h2>Planning your adventure...</h2>
-                <p>
-                  Collecting travel options, estimating costs and preparing
-                  your itinerary.
-                </p>
+                <p>Generating your itinerary and collecting travel data.</p>
               </div>
             )}
 
@@ -309,13 +384,13 @@ function App() {
                 <div className="empty-illustration">✈</div>
                 <h2>Your next adventure starts here</h2>
                 <p>
-                  Enter your trip details and generate a personalized travel
-                  plan with an estimated budget.
+                  Enter your trip details to generate a personalized travel
+                  plan and budget estimate.
                 </p>
                 <div className="feature-list">
                   <span>✓ Day-by-day itinerary</span>
                   <span>✓ Budget breakdown</span>
-                  <span>✓ Travel tool information</span>
+                  <span>✓ Live tourist places</span>
                 </div>
               </div>
             )}
@@ -330,6 +405,7 @@ function App() {
                         {result.source} <span>→</span> {result.destination}
                       </h2>
                     </div>
+
                     <button
                       className="secondary-button"
                       onClick={downloadItinerary}
@@ -411,10 +487,9 @@ function App() {
                                   )}
                                 </td>
                                 <td className="amount-cell">
-                                  {key === "contingency" &&
-                                  item?.rate !== undefined
-                                    ? `${formatCurrency(item.amount)} (${Math.round(item.rate * 100)}%)`
-                                    : formatCurrency(item?.amount)}
+                                  {item?.amount == null
+                                    ? "Unavailable"
+                                    : formatCurrency(item.amount)}
                                 </td>
                               </tr>
                             ))}
@@ -437,8 +512,8 @@ function App() {
 
                       {breakdown.essential_prices_complete === false && (
                         <p className="warning-message">
-                          Some essential prices are missing. The total may be
-                          incomplete.
+                          Some essential prices are missing. This is a partial
+                          estimate, not the final trip cost.
                         </p>
                       )}
 
@@ -458,93 +533,93 @@ function App() {
                   )}
                 </section>
 
-                {/* Live Tourist Places */}
-                {result.tool_data?.live_places && (
-                  <section className="panel content-panel">
-                    <div className="section-heading">
-                      <span className="section-icon">📍</span>
-                      <div>
-                        <h2>Live Tourist Places</h2>
-                        <p>
-                          Provider:{" "}
-                          {result.tool_data.live_places.provider || "Not specified"}
-                          {" · "}
-                          Status:{" "}
-                          {result.tool_data.live_places.status || "Not specified"}
-                        </p>
-                      </div>
+                <section className="panel content-panel">
+                  <div className="section-heading">
+                    <span className="section-icon">📍</span>
+                    <div>
+                      <h2>Live Tourist Places</h2>
+                      <p>
+                        {liveData?.provider || "OpenStreetMap"} ·{" "}
+                        {liveData?.status || "Waiting for data"}
+                      </p>
                     </div>
+                  </div>
 
-                    {(() => {
-                      const liveData = result.tool_data.live_places;
-                      const places = Array.isArray(liveData)
-                        ? liveData
-                        : Array.isArray(liveData.places)
-                          ? liveData.places
-                          : [];
+                  {placesLoading && <p>Loading live tourist places...</p>}
 
-                      if (places.length === 0) {
-                        return (
-                          <p>
-                            No tourist places were returned for this destination.
-                          </p>
-                        );
-                      }
+                  {placesError && (
+                    <p className="warning-message">{placesError}</p>
+                  )}
 
-                      return (
-                        <div className="places-grid">
-                          {places.map((place, index) => {
-                            const latitude =
-                              place.latitude ?? place.lat ?? place.coordinates?.lat;
-                            const longitude =
-                              place.longitude ?? place.lon ?? place.lng ?? place.coordinates?.lon;
+                  {!placesLoading && places.length === 0 && !placesError && (
+                    <p>No tourist places were returned for this destination.</p>
+                  )}
 
-                            return (
-                              <article
-                                className="place-card"
-                                key={place.id || place.name || index}
-                              >
-                                <span className="place-category">
-                                  {formatLabel(place.category || "Tourist place")}
-                                </span>
+                  {places.length > 0 && (
+                    <>
+                      <p className="places-note">
+                        {liveData?.count ?? places.length} map records found.
+                        Tourist suitability and current access are not
+                        independently verified.
+                      </p>
 
-                                <h3>{place.name || "Unnamed place"}</h3>
+                      <div className="places-grid">
+                        {places.map((place, index) => {
+                          const latitude = place.latitude ?? place.lat;
+                          const longitude =
+                            place.longitude ?? place.lon ?? place.lng;
 
-                                <p>
-                                  {place.description || "No description available."}
+                          const mapUrl =
+                            place.osm_url ||
+                            (latitude != null && longitude != null
+                              ? `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=16/${latitude}/${longitude}`
+                              : null);
+
+                          return (
+                            <article
+                              className="place-card"
+                              key={place.id || place.name || index}
+                            >
+                              <span className="place-category">
+                                {formatLabel(place.category || "Tourist place")}
+                              </span>
+                              <h3>{place.name || "Unnamed place"}</h3>
+                              <p>
+                                {place.description ||
+                                  place.display_name ||
+                                  "No description available."}
+                              </p>
+
+                              {mapUrl && (
+                                <a
+                                  href={mapUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  View on OpenStreetMap ↗
+                                </a>
+                              )}
+
+                              {place.verified_tourist_attraction === false && (
+                                <p className="place-warning">
+                                  Tourist suitability has not been
+                                  independently verified.
                                 </p>
-
-                                {latitude != null && longitude != null && (
-                                  <a
-                                    href={`https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=16/${latitude}/${longitude}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                  >
-                                    View on OpenStreetMap ↗
-                                  </a>
-                                )}
-
-                                {place.verified_tourist_attraction === false && (
-                                  <p className="place-warning">
-                                    Tourist suitability has not been independently
-                                    verified.
-                                  </p>
-                                )}
-                              </article>
-                            );
-                          })}
-                        </div>
-                      );
-                    })()}
-                  </section>
-                )}
+                              )}
+                            </article>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </section>
 
                 <section className="panel content-panel">
                   <div className="section-heading">
                     <span className="section-icon">⚙</span>
                     <div>
                       <h2>Travel tool diagnostics</h2>
-                      <p>Data returned by the connected tools</p>
+                      <p>Data returned by connected tools</p>
                     </div>
                   </div>
 
@@ -589,5 +664,3 @@ function App() {
     </div>
   );
 }
-
-export default App;
