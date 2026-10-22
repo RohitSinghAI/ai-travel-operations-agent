@@ -2,32 +2,28 @@
 from datetime import date
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 
 class TravelRequest(BaseModel):
-    model_config = ConfigDict(str_strip_whitespace=True)
-
-    # Trip details
     source: str = Field(min_length=2, max_length=100)
     destination: str = Field(min_length=2, max_length=100)
 
-    days: int = Field(ge=1, le=30)
+    start_date: date
+    end_date: date
+
+    travelers: int = Field(ge=1, le=20)
     budget: float = Field(gt=0)
-    travelers: int = Field(default=1, ge=1, le=50)
+    currency: str = Field(default="INR", min_length=3, max_length=3)
     preferences: list[str] = Field(default_factory=list)
 
-    # Hotel search and travel dates
-    check_in: date
-    check_out: date
-
     @model_validator(mode="after")
-    def validate_trip_dates(self):
-        if self.check_out <= self.check_in:
-            raise ValueError("check_out must be after check_in")
+    def validate_dates(self):
+        if self.end_date <= self.start_date:
+            raise ValueError("end_date must be after start_date")
 
-        if (self.check_out - self.check_in).days > 30:
-            raise ValueError("Hotel stay cannot exceed 30 nights")
+        if (self.end_date - self.start_date).days > 30:
+            raise ValueError("Trip cannot exceed 30 days")
 
         return self
 
@@ -41,12 +37,15 @@ class TravelResponse(BaseModel):
     days: int
     travelers: int
 
-    # Return selected trip dates to the frontend
-    check_in: date | None = None
-    check_out: date | None = None
+    start_date: date | None = None
+    end_date: date | None = None
 
-    # Additional travel planning results
     tool_data: dict[str, Any] = Field(default_factory=dict)
     budget_breakdown: dict[str, Any] = Field(default_factory=dict)
     budget_analysis: str = ""
     review_notes: str = ""
+
+    transport_options: dict[str, Any] = Field(default_factory=dict)
+    hotel_options: dict[str, Any] = Field(default_factory=dict)
+    activity_options: dict[str, Any] = Field(default_factory=dict)
+    weather_summary: dict[str, Any] = Field(default_factory=dict)

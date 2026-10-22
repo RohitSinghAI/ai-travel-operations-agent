@@ -23,9 +23,36 @@ def _extract_activities(activity_data: Any) -> list[dict[str, Any]]:
             if nested:
                 return nested
 
+        # MCP stdio client may return JSON inside a text content block.
+        if isinstance(value, str):
+            import json
+
+            try:
+                parsed = json.loads(value)
+            except (json.JSONDecodeError, TypeError):
+                continue
+
+            nested = _extract_activities(parsed)
+            if nested:
+                return nested
+
     # A single activity object may itself be supplied.
     if any(key in activity_data for key in ("name", "title", "activity")):
         return [activity_data]
+
+    # Handle a raw MCP text-content response.
+    for item in activity_data.get("content", []):
+        if isinstance(item, dict) and isinstance(item.get("text"), str):
+            import json
+
+            try:
+                parsed = json.loads(item["text"])
+            except (json.JSONDecodeError, TypeError):
+                continue
+
+            nested = _extract_activities(parsed)
+            if nested:
+                return nested
 
     return []
 
@@ -36,10 +63,8 @@ def run_activity_agent(
     max_results: int = 10,
 ) -> dict[str, Any]:
     """
-    Process available tourist activities and optionally rank them
-    according to the traveller's preferences.
-
-    This function processes supplied data; it does not fetch live data.
+    Normalize and rank supplied activities.
+    Estimated costs are not treated as live quotes.
     """
 
     if max_results < 1:
@@ -72,20 +97,35 @@ def run_activity_agent(
             if term in searchable_text
         ]
 
+        # Preserve provider estimates while remaining compatible
+        # with older records that use the "price" field.
+        estimated_cost = activity.get("estimated_cost_per_person")
+        price = activity.get("price")
+
+        if price is None:
+            price = estimated_cost
+
         results.append({
             "name": name,
             "description": description,
             "category": category,
             "location": activity.get("location"),
-            "price": activity.get("price"),
+            "price": price,
+            "estimated_cost_per_person": estimated_cost,
             "currency": activity.get("currency", "INR"),
             "duration": activity.get("duration"),
             "matched_preferences": matched_preferences,
             "is_live": activity.get("is_live", False),
             "verified": activity.get("verified", False),
+            "cost_type": (
+                "estimate"
+                if estimated_cost is not None
+                else "provider_price"
+                if activity.get("price") is not None
+                else "unknown"
+            ),
         })
 
-    # Activities matching more preferences appear first.
     results.sort(
         key=lambda item: len(item["matched_preferences"]),
         reverse=True,
@@ -99,7 +139,8 @@ def run_activity_agent(
         "preferences": preference_terms,
         "activities": selected,
         "message": (
-            "Activities processed and ranked by preference."
+            "Activities processed and ranked by preference. "
+            "Estimated costs are not live quotes."
             if selected
             else "No usable activities were returned by the data source."
         ),

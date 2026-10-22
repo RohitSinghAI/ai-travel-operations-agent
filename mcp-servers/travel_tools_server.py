@@ -1,6 +1,16 @@
 
 import os
+import sys
+from pathlib import Path
+
 from mcp.server.fastmcp import FastMCP
+
+
+# Add project root to Python import path.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 
 from backend.app.tools.transport_tools import search_transport
 from backend.app.tools.hotel_tools import search_hotels
@@ -13,10 +23,11 @@ mcp = FastMCP("travel-tools")
 
 @mcp.tool()
 def find_transport(source: str, destination: str) -> dict:
-    """Find transport options. Reports whether live provider APIs are configured."""
+    """Find sample transport options and report live API configuration."""
 
     train_configured = bool(
-        os.getenv("TRAIN_API_BASE_URL") and os.getenv("TRAIN_API_KEY")
+        os.getenv("TRAIN_API_BASE_URL")
+        and os.getenv("TRAIN_API_KEY")
     )
 
     bus_configured = bool(
@@ -25,7 +36,6 @@ def find_transport(source: str, destination: str) -> dict:
         and os.getenv("BUS_API_PASSWORD")
     )
 
-    # Existing function currently supplies sample data, not live API quotes.
     sample_options = search_transport(source, destination)
 
     return {
@@ -36,41 +46,45 @@ def find_transport(source: str, destination: str) -> dict:
         "providers": {
             "train": {
                 "configured": train_configured,
-                "status": "credentials_configured"
-                if train_configured
-                else "not_configured",
+                "status": (
+                    "credentials_configured"
+                    if train_configured
+                    else "not_configured"
+                ),
             },
             "bus": {
                 "configured": bus_configured,
-                "status": "credentials_configured"
-                if bus_configured
-                else "not_configured",
+                "status": (
+                    "credentials_configured"
+                    if bus_configured
+                    else "not_configured"
+                ),
             },
         },
         "sample_options": sample_options,
         "message": (
-            "Live train and bus search is not implemented in this tool yet. "
-            "Sample options are not live quotes. Configure provider access "
-            "and implement its documented API before using live fares."
+            "This tool currently returns sample transport data only. "
+            "Live train and bus API calls have not been implemented. "
+            "Configured credentials alone do not mean live data is available."
         ),
     }
 
 
 @mcp.tool()
 def find_hotels(destination: str) -> list[dict]:
-    """Find hotel options using the existing hotel tool."""
+    """Find sample hotel options in a destination city."""
     return search_hotels(destination)
 
 
 @mcp.tool()
 def find_activities(destination: str) -> list[dict]:
-    """Find tourist activities using the existing activities tool."""
+    """Find sample activities in a destination city."""
     return search_activities(destination)
 
 
 @mcp.tool()
 def check_weather(destination: str) -> dict:
-    """Check weather using the existing weather tool."""
+    """Check weather using the configured weather tool."""
     return get_weather(destination)
 
 
