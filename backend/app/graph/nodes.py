@@ -1,5 +1,6 @@
 import asyncio
 import json
+from datetime import date, timedelta
 from typing import Any
 
 from backend.app.agents.activity_agent import run_activity_agent
@@ -142,10 +143,15 @@ def specialist_agents_node(state: TravelAgentState) -> TravelAgentState:
             transport_data=tool_data.get("find_transport", {}),
             budget=budget,
             travelers=travelers,
+            max_results=5,
         )
         hotel_options = run_hotel_agent(
-            tool_data.get("find_hotels", {}),
+            hotel_data=tool_data.get("find_hotels", {}),
             budget=budget,
+            travelers=travelers,
+            max_results=5,
+            start_date=state.get("start_date"),
+            end_date=state.get("end_date"),
         )
         activity_options = run_activity_agent(
             activity_data=tool_data.get("find_activities", {}),
@@ -189,6 +195,8 @@ def budget_agent_node(state: TravelAgentState) -> TravelAgentState:
             travelers=max(1, int(state.get("travelers") or 1)),
             days=max(1, int(state.get("days") or 1)),
             budget=float(state.get("budget") or 0),
+            start_date=state.get("start_date"),
+            end_date=state.get("end_date"),
         )
         analysis = json.dumps(
             breakdown,
@@ -289,6 +297,26 @@ def _forecast_for_trip(
     return matching_days, covers_trip
 
 
+def _build_trip_calendar(start_date: Any, end_date: Any) -> list[dict[str, str]]:
+    """Build a verified calendar for overnight trip dates; checkout is excluded."""
+    try:
+        start = date.fromisoformat(str(start_date)[:10])
+        end = date.fromisoformat(str(end_date)[:10])
+    except (TypeError, ValueError):
+        return []
+
+    if end <= start:
+        return []
+
+    return [
+        {
+            "date": (start + timedelta(days=offset)).isoformat(),
+            "weekday": (start + timedelta(days=offset)).strftime("%A"),
+        }
+        for offset in range((end - start).days)
+    ]
+
+
 def _rank_tourist_places(places: list) -> list:
     """Rank places by relevance without claiming official verification."""
 
@@ -372,6 +400,15 @@ def itinerary_agent_node(state: TravelAgentState) -> TravelAgentState:
     live_places = tool_data.get("live_places") or {}
 
     destination = str(state.get("destination", "")).strip()
+    trip_calendar = _build_trip_calendar(
+        state.get("start_date"),
+        state.get("end_date"),
+    )
+    if not trip_calendar:
+        return {
+            **state,
+            "error": "Cannot build trip calendar: check start_date and end_date.",
+        }
 
     # --------------------------------------------------
     # 1. Validate weather location and trip dates
@@ -470,8 +507,11 @@ TRIP DETAILS
 - Destination: {destination}
 - Start date: {state.get("start_date", "Not provided")}
 - End date: {state.get("end_date", "Not provided")}
-- Duration: {state.get("days", 1)} days
+- Duration: {state.get("days", 1)} days/nights as defined by the API
 - Travelers: {state.get("travelers", 1)}
+- Verified trip calendar (use these exact dates and weekdays):
+{_json_for_prompt(trip_calendar, 2000)}
+- The end_date is checkout/departure date and is excluded from the overnight activity calendar.
 - Total budget: {state.get("currency", "INR")} {state.get("budget", 0)}
 - Preferences: {state.get("preferences", [])}
 
@@ -546,7 +586,10 @@ RULES
 13. If accommodation or transport costs are missing, do not describe
     the budget as a complete trip cost.
 
-14. Follow the requested number of days, travelers, and dates.
+14. Follow the requested number of days, travelers, and dates. Use the
+    verified trip calendar above for every weekday label. Do not invent,
+    recalculate, or shift dates/weekday names. Do not schedule an overnight
+    stay on the end_date checkout/departure date.
 
 15. Respect the budget. Explain missing costs or potential shortfalls
     without changing the authoritative Python budget totals.
@@ -628,6 +671,10 @@ def review_agent_node(state: TravelAgentState) -> TravelAgentState:
     budget = state.get("budget_breakdown") or {}
 
     requested_destination = str(state.get("destination", "")).strip()
+    trip_calendar = _build_trip_calendar(
+        state.get("start_date"),
+        state.get("end_date"),
+    )
     weather_location = live_weather.get("location") or {}
     places_location = live_places.get("location") or live_places.get("resolved_location") or {}
     weather_location_matches = _location_matches_destination(
@@ -690,8 +737,11 @@ TRIP
 - Destination: {state.get("destination", "")}
 - Start date: {state.get("start_date", "Not provided")}
 - End date: {state.get("end_date", "Not provided")}
-- Days: {state.get("days", 1)}
+- Days/nights as defined by the API: {state.get("days", 1)}
 - Travelers: {state.get("travelers", 1)}
+- Verified trip calendar (use exact dates and weekdays):
+{_json_for_prompt(trip_calendar, 2000)}
+- The end_date is checkout/departure date and is excluded from overnight activity dates.
 
 FACT CHECK DATA
 {_json_for_prompt(compact_data, 5000)}
@@ -712,7 +762,8 @@ RULES
 7. Only describe weather as a forecast for the trip dates if the location matches and the provider forecast covers the entire requested date range; otherwise say trip-date weather is unavailable.
 8. If weather/place location does not match the requested destination, remove those claims and flag the mismatch.
 9. Do not label unverified places as verified attractions.
-10. Return the corrected itinerary only.
+10. Preserve the exact dates and weekdays from the verified trip calendar. Do not invent or recalculate weekday labels; do not schedule an overnight stay on checkout/departure date.
+11. Return the corrected itinerary only.
 """
 
     try:
