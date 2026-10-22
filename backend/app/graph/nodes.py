@@ -155,6 +155,8 @@ def specialist_agents_node(state: TravelAgentState) -> TravelAgentState:
             weather_data=tool_data.get("live_weather", {}),
             destination=str(state.get("destination", "")),
             days=days,
+            start_date=state.get("start_date"),
+            end_date=state.get("end_date"),
         )
 
         return {
@@ -242,40 +244,49 @@ def _location_matches_destination(destination: str, location: Any) -> bool:
     return True
 
 
+
 def _forecast_for_trip(
     forecast: Any,
-    check_in: Any,
-    check_out: Any,
+    start_date: Any,
+    end_date: Any,
 ) -> tuple[list[dict[str, Any]], bool]:
-    """Return forecast days inside the requested trip window and coverage status."""
-    if not isinstance(forecast, list):
-        return [], False
+    """Return only forecast days within the trip's end-exclusive date range."""
+    from datetime import date, timedelta
 
-    start_date = str(check_in or "")[:10]
-    end_date = str(check_out or "")[:10]
-    if not start_date or not end_date:
-        return [], False
-
-    matching_days = [
-        item for item in forecast
-        if isinstance(item, dict)
-        and start_date <= str(item.get("date") or "")[:10] <= end_date
-    ]
-    expected_dates = {str(item.get("date") or "")[:10] for item in matching_days}
     try:
-        from datetime import date, timedelta
-        start = date.fromisoformat(start_date)
-        end = date.fromisoformat(end_date)
-        if end < start:
-            return [], False
-        required_dates = {
-            (start + timedelta(days=offset)).isoformat()
-            for offset in range((end - start).days + 1)
-        }
+        start = date.fromisoformat(str(start_date)[:10])
+        end = date.fromisoformat(str(end_date)[:10])
     except (TypeError, ValueError):
-        return matching_days, False
+        return [], False
 
-    return matching_days, required_dates.issubset(expected_dates)
+    if end <= start or not isinstance(forecast, list):
+        return [], False
+
+    required_dates = {
+        (start + timedelta(days=offset)).isoformat()
+        for offset in range((end - start).days)
+    }
+
+    matching_days = []
+    found_dates = set()
+
+    for item in forecast:
+        if not isinstance(item, dict):
+            continue
+
+        try:
+            forecast_date = date.fromisoformat(
+                str(item.get("date") or "")[:10]
+            ).isoformat()
+        except ValueError:
+            continue
+
+        if forecast_date in required_dates:
+            matching_days.append(item)
+            found_dates.add(forecast_date)
+
+    covers_trip = required_dates.issubset(found_dates)
+    return matching_days, covers_trip
 
 
 def _rank_tourist_places(places: list) -> list:

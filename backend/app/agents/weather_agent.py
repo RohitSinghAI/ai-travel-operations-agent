@@ -1,4 +1,4 @@
-
+from datetime import date, timedelta
 from typing import Any
 
 
@@ -6,12 +6,14 @@ def run_weather_agent(
     weather_data: Any,
     destination: str,
     days: int = 1,
+    start_date: str | date | None = None,
+    end_date: str | date | None = None,
 ) -> dict[str, Any]:
     """
     Process weather data for a travel destination.
 
-    This agent processes supplied weather data.
-    It does not fetch a live forecast by itself.
+    Only returns forecast data matching the requested travel dates.
+    This agent does not fetch weather data itself.
     """
 
     if days < 1:
@@ -20,21 +22,38 @@ def run_weather_agent(
     if not isinstance(destination, str) or not destination.strip():
         raise ValueError("Destination cannot be empty.")
 
-    # Handle missing or invalid weather data.
-    if not isinstance(weather_data, dict) or not weather_data:
+    def parse_date(value: str | date | None) -> date | None:
+        if value is None:
+            return None
+        if isinstance(value, date):
+            return value
+        return date.fromisoformat(value)
+
+    trip_start = parse_date(start_date)
+    trip_end = parse_date(end_date)
+
+    if trip_start and trip_end and trip_end <= trip_start:
+        raise ValueError("end_date must be after start_date.")
+
+    def unavailable(message: str) -> dict[str, Any]:
         return {
             "status": "unavailable",
             "destination": destination.strip(),
-            "forecast": None,
+            "days": days,
+            "start_date": trip_start.isoformat() if trip_start else None,
+            "end_date": trip_end.isoformat() if trip_end else None,
+            "forecast": [],
             "travel_advice": [
-                "Weather forecast is unavailable.",
-                "Check the forecast before travelling.",
+                "Weather forecast is unavailable for the requested trip dates.",
+                "Check the forecast again closer to departure.",
             ],
             "is_live": False,
-            "message": "No usable weather data was provided.",
+            "message": message,
         }
 
-    # Support common API response formats.
+    if not isinstance(weather_data, dict) or not weather_data:
+        return unavailable("No usable weather data was provided.")
+
     forecast = weather_data.get(
         "forecast",
         weather_data.get("daily", weather_data.get("current")),
@@ -46,58 +65,107 @@ def run_weather_agent(
     if forecast is None:
         forecast = weather_data
 
-    # Preserve source data without inventing forecast values.
-    advice = []
+    # Normalize common forecast structures into dated records.
+    records: list[dict[str, Any]] = []
 
-    if isinstance(forecast, dict):
-        temperature = forecast.get("temperature")
+    if isinstance(forecast, list):
+        records = [item for item in forecast if isinstance(item, dict)]
+
+    elif isinstance(forecast, dict):
+        # Open-Meteo daily format commonly uses:
+        # {"time": ["YYYY-MM-DD", ...], "temperature_2m_max": [...]}
+        dates = forecast.get("time", forecast.get("dates"))
+
+        if isinstance(dates, list):
+            for index, day_value in enumerate(dates):
+                record = {"date": day_value}
+                for key, values in forecast.items():
+                    if key in ("time", "dates"):
+                        continue
+                    if isinstance(values, list) and index < len(values):
+                        record[key] = values[index]
+                records.append(record)
+
+        else:
+            nested = forecast.get("forecast")
+            if isinstance(nested, list):
+                records = [item for item in nested if isinstance(item, dict)]
+            elif any(key in forecast for key in ("date", "datetime")):
+                records = [forecast]
+
+    # Filter by the requested travel dates.
+    if trip_start and trip_end:
+        trip_records = []
+
+        for record in records:
+            raw_date = record.get("date", record.get("datetime", record.get("time")))
+            try:
+                forecast_date = (
+                    raw_date if isinstance(raw_date, date)
+                    else date.fromisoformat(str(raw_date)[:10])
+                )
+            except (TypeError, ValueError):
+                continue
+
+            # end_date is the checkout/departure date, so it is exclusive.
+            if trip_start <= forecast_date < trip_end:
+                trip_records.append(record)
+
+        expected_days = (trip_end - trip_start).days
+        covered_dates = {
+            str(record.get("date", record.get("datetime", record.get("time")))[:10])
+            for record in trip_records
+            if isinstance(
+                record.get("date", record.get("datetime", record.get("time"))),
+                str,
+            )
+        }
+
+        # Do not present a partial forecast as a complete trip forecast.
+        expected_dates = {
+            (trip_start + timedelta(days=offset)).isoformat()
+            for offset in range(expected_days)
+        }
+
+        if len(trip_records) < expected_days or not expected_dates.issubset(covered_dates):
+            return unavailable(
+                "Available forecast does not cover all requested trip dates."
+            )
+
+        forecast = trip_records
+
+    elif records:
+        forecast = records[:days]
+
+    else:
+        return unavailable("No dated forecast records were found.")
+
+    advice = [
+        "Check local conditions again before outdoor activities."
+    ]
+
+    for record in forecast if isinstance(forecast, list) else []:
         condition = str(
-            forecast.get("condition")
-            or forecast.get("description")
-            or forecast.get("weather")
+            record.get("condition")
+            or record.get("description")
+            or record.get("weather")
             or ""
         ).lower()
 
-        if temperature is not None:
-            try:
-                temp = float(temperature)
-
-                if temp >= 35:
-                    advice.append(
-                        "Hot conditions may require water, sunscreen, "
-                        "and outdoor breaks."
-                    )
-                elif temp <= 10:
-                    advice.append(
-                        "Consider warm clothing if these temperatures "
-                        "are forecast for your travel dates."
-                    )
-            except (TypeError, ValueError):
-                pass
-
         if any(word in condition for word in ("rain", "storm", "thunder")):
             advice.append(
-                "Check rain conditions and keep an indoor activity option."
+                "Rain may affect outdoor activities; keep an indoor alternative."
             )
-
-        if not advice:
-            advice.append(
-                "Check the forecast for each travel day before finalizing "
-                "outdoor activities."
-            )
-
-    else:
-        advice.append(
-            "Review the forecast for each travel day before planning "
-            "outdoor activities."
-        )
+            break
 
     return {
         "status": "success",
         "destination": destination.strip(),
         "days": days,
+        "start_date": trip_start.isoformat() if trip_start else None,
+        "end_date": trip_end.isoformat() if trip_end else None,
         "forecast": forecast,
         "travel_advice": advice,
-        "is_live": weather_data.get("is_live", False),
-        "message": "Weather data processed successfully.",
+        "is_live": bool(weather_data.get("is_live", False)),
+        "message": "Forecast matches the requested travel dates.",
     }
