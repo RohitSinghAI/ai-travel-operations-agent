@@ -1,4 +1,3 @@
-
 from groq import Groq
 
 from backend.app.config import settings
@@ -18,16 +17,26 @@ def ask_llm(prompt: str) -> str:
             {
                 "role": "system",
                 "content": (
-                    "You are an AI travel planning assistant. "
-                    "Create practical travel plans, respect the "
-                    "user's budget, and clearly label estimates. "
-                    "Never claim that a booking has been confirmed."
+                    "You are a practical AI travel planner. "
+                    "Respect the supplied dates and authoritative "
+                    "budget totals. Never invent prices, availability, "
+                    "weather, or bookings. Clearly disclose missing "
+                    "data and label estimates accurately. "
+                    "Keep the itinerary concise and useful."
                 ),
             },
-            {"role": "user", "content": prompt},
+            {
+                "role": "user",
+                "content": prompt,
+            },
         ],
         temperature=0.3,
+        max_tokens=1800,
     )
 
     content = response.choices[0].message.content
-    return content or "No travel plan was generated."
+
+    if not content or not content.strip():
+        return "No travel plan was generated."
+
+    return content.strip()

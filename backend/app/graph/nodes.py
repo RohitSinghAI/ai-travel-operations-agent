@@ -509,37 +509,34 @@ TRIP DETAILS
 - End date: {state.get("end_date", "Not provided")}
 - Duration: {state.get("days", 1)} days/nights as defined by the API
 - Travelers: {state.get("travelers", 1)}
-- Verified trip calendar (use these exact dates and weekdays):
-{_json_for_prompt(trip_calendar, 2000)}
-- The end_date is checkout/departure date and is excluded from the overnight activity calendar.
+- Verified calendar (exact dates/weekdays):
+{_json_for_prompt(trip_calendar, 800)}
+- end_date is checkout/departure; exclude it from overnight activities.
 - Total budget: {state.get("currency", "INR")} {state.get("budget", 0)}
 - Preferences: {state.get("preferences", [])}
 
 SPECIALIST AGENT OUTPUTS
 
 Transport options:
-{_json_for_prompt(state.get("transport_options", {}), 5000)}
+{_json_for_prompt(state.get("transport_options", {}), 1000)}
 
 Hotel options:
-{_json_for_prompt(state.get("hotel_options", {}), 5000)}
+{_json_for_prompt(state.get("hotel_options", {}), 1000)}
 
 Activity options:
-{_json_for_prompt(state.get("activity_options", {}), 5000)}
+{_json_for_prompt(state.get("activity_options", {}), 1000)}
 
 Weather summary from specialist agent:
-{_json_for_prompt(state.get("weather_summary", {}), 3000)}
+{_json_for_prompt(state.get("weather_summary", {}), 500)}
 
 VALIDATED WEATHER FOR REQUESTED TRIP DATES:
-{_json_for_prompt(weather_for_prompt, 4000)}
+{_json_for_prompt(weather_for_prompt, 700)}
 
 RANKED TOURIST-PLACE DATA:
-{_json_for_prompt(places_for_prompt, 6000)}
-
-COLLECTED TOOL DATA:
-{_json_for_prompt(tool_data, 10000)}
+{_json_for_prompt(places_for_prompt, 1200)}
 
 AUTHORITATIVE PYTHON BUDGET:
-{_json_for_prompt(budget_breakdown, 5000)}
+{_json_for_prompt(budget_breakdown, 1200)}
 
 RULES
 
@@ -726,8 +723,8 @@ def review_agent_node(state: TravelAgentState) -> TravelAgentState:
     }
 
     draft = str(state.get("itinerary") or "")
-    if len(draft) > 10000:
-        draft = draft[:10000] + "\n\n[Draft truncated for review.]"
+    if len(draft) > 4500:
+        draft = draft[:4500] + "\n\n[Draft truncated for review.]"
 
     prompt = f"""
 You are a travel itinerary quality reviewer.
@@ -739,15 +736,15 @@ TRIP
 - End date: {state.get("end_date", "Not provided")}
 - Days/nights as defined by the API: {state.get("days", 1)}
 - Travelers: {state.get("travelers", 1)}
-- Verified trip calendar (use exact dates and weekdays):
-{_json_for_prompt(trip_calendar, 2000)}
-- The end_date is checkout/departure date and is excluded from overnight activity dates.
+- Verified calendar (exact dates/weekdays):
+{_json_for_prompt(trip_calendar, 800)}
+- end_date is checkout/departure; exclude it from overnight activities.
 
 FACT CHECK DATA
-{_json_for_prompt(compact_data, 5000)}
+{_json_for_prompt(compact_data, 2500)}
 
 AUTHORITATIVE PYTHON BUDGET
-{_json_for_prompt(compact_budget, 4000)}
+{_json_for_prompt(compact_budget, 2000)}
 
 DRAFT
 {draft}

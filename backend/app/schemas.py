@@ -22,8 +22,10 @@ class TravelRequest(BaseModel):
         if self.end_date <= self.start_date:
             raise ValueError("end_date must be after start_date")
 
-        if (self.end_date - self.start_date).days > 30:
-            raise ValueError("Trip cannot exceed 30 days")
+        trip_nights = (self.end_date - self.start_date).days
+
+        if trip_nights > 30:
+            raise ValueError("Trip cannot exceed 30 nights")
 
         return self
 
