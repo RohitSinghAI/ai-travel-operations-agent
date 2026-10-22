@@ -22,8 +22,10 @@ def test_create_travel_plan(monkeypatch):
             "destination": request.destination,
             "itinerary": "Day 1: Explore Goa.",
             "budget": request.budget,
-            "days": request.days,
+            "days": (request.end_date - request.start_date).days,
             "travelers": request.travelers,
+            "start_date": request.start_date,
+            "end_date": request.end_date,
             "tool_data": {},
             "budget_breakdown": {
                 "estimated_total": 9240,
@@ -44,7 +46,8 @@ def test_create_travel_plan(monkeypatch):
         json={
             "source": "Hyderabad",
             "destination": "Goa",
-            "days": 3,
+            "start_date": "2026-11-10",
+            "end_date": "2026-11-13",
             "budget": 15000,
             "travelers": 2,
             "preferences": ["beaches", "local food"],
@@ -57,6 +60,7 @@ def test_create_travel_plan(monkeypatch):
 
     assert data["status"] == "success"
     assert data["destination"] == "Goa"
+    assert data["days"] == 3
     assert data["budget_breakdown"]["estimated_total"] == 9240
     assert data["budget_breakdown"]["is_live_quote"] is False
 
@@ -67,7 +71,8 @@ def test_invalid_travel_request():
         json={
             "source": "H",
             "destination": "Goa",
-            "days": 3,
+            "start_date": "2026-11-10",
+            "end_date": "2026-11-13",
             "budget": 15000,
             "travelers": 2,
         },
