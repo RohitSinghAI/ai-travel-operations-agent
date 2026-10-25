@@ -523,8 +523,11 @@ Transport options:
 Hotel options:
 {_json_for_prompt(state.get("hotel_options", {}), 1000)}
 
-Activity options:
-{_json_for_prompt(state.get("activity_options", {}), 1000)}
+Activity options (source of activity names and cost estimates):
+{_json_for_prompt(state.get("activity_options", {}), 2500)}
+
+Original activity-provider records:
+{_json_for_prompt((tool_data.get("find_activities") or {}).get("result", {}), 1800)}
 
 Weather summary from specialist agent:
 {_json_for_prompt(state.get("weather_summary", {}), 500)}
@@ -537,6 +540,9 @@ RANKED TOURIST-PLACE DATA:
 
 AUTHORITATIVE PYTHON BUDGET:
 {_json_for_prompt(budget_breakdown, 1200)}
+
+RULES
+
 
 RULES
 
@@ -596,7 +602,6 @@ RULES
 
 17. This project does not provide flight booking.
 
-
 18. OpenStreetMap tags are not proof of official tourist-attraction
     verification. Describe the source accurately.
 
@@ -617,19 +622,42 @@ RULES
 24. Do not claim that a suggested beach, fort, museum, or other place
     is nearby unless its location or distance supports that claim.
 
-25. For activity costs, preserve the activity agent's supplied price
-    and estimated_cost_per_person values. Never change a known estimate
-    to zero just because it is not a live quote.
+25. Preserve the activity agent's supplied activity names, price, and
+    estimated_cost_per_person values. Do not replace one activity name
+    with a different place from OpenStreetMap. Activity options and
+    tourist-place search results are separate sources; do not claim they
+    refer to the same place unless the names match.
 
-26. If an activity has category "Food" and its cost is already covered
+26. When creating the day-by-day itinerary, use the exact names from
+    the supplied activity options for provider-sourced activities.
+    Do not silently replace, rename, or omit a provider activity
+    because a different tourist place appears in the places data.
+
+27. Tourist places obtained from OpenStreetMap may be included as
+    separate optional suggestions. Clearly identify them as suggestions
+    from the places data, not as activities returned by the activity
+    provider. Do not imply that one place is another.
+
+28. If a provider activity is not scheduled, say it was not included
+    in the itinerary rather than substituting a different place.
+    Keep activity prices and verification limitations attached to
+    the correct source record.
+
+29. A numeric zero in data marked is_live=false, is_live_quote=false,
+    or cost_type="estimate" is NOT proof that entry is free. Describe it
+    as an unverified/sample zero-cost estimate unless the source text
+    explicitly confirms free entry. Never state "free entry" solely
+    because the numeric price is zero.
+
+30. If an activity has category "Food" and its cost is already covered
     by the authoritative food budget, explain that it is included in
     the food budget. Do not add it again to the activity subtotal.
 
-27. Distinguish between a free activity and an activity whose price is
-    unknown. Use zero cost only when the source explicitly gives a
-    zero price. If the price is missing, say "price unavailable".
+31. Distinguish between a free activity and an activity whose price is
+    unknown. If the price is missing, say "price unavailable"; if the
+    supplied amount is an estimate, label it as an estimate.
 
-28. In the budget summary, preserve the authoritative Python values.
+32. In the budget summary, preserve the authoritative Python values.
     When essential prices are incomplete, describe budget_remaining
     as provisional, not as the final amount left to spend.
 
@@ -717,13 +745,18 @@ def review_agent_node(state: TravelAgentState) -> TravelAgentState:
         "places": [
             {
                 "name": place.get("name"),
+                "category": place.get("category"),
                 "verified_tourist_attraction": place.get(
                     "verified_tourist_attraction", False
                 ),
             }
-            for place in ((live_places.get("places") or []) if places_location_matches else [])[:5]
+            for place in ((live_places.get("places") or []) if places_location_matches else [])[:12]
             if isinstance(place, dict)
         ],
+        "activity_options": state.get("activity_options") or {},
+        "activity_provider_records": (tool_data.get("find_activities") or {}).get(
+            "result", {}
+        ),
     }
 
     compact_budget = {
@@ -776,11 +809,26 @@ RULES
 8. If weather/place location does not match the requested destination, remove those claims and flag the mismatch.
 9. Do not label unverified places as verified attractions.
 10. Preserve the exact dates and weekdays from the verified trip calendar. Do not invent or recalculate weekday labels; do not schedule an overnight stay on checkout/departure date.
-11. Preserve activity agent price and estimated_cost_per_person values. Never turn a known estimate into zero merely because it is not a live quote.
-12. Distinguish free activities from unknown prices. Use zero only when the supplied source explicitly says the activity is free or price is zero; otherwise say the price is unavailable or an estimate as supported by the data.
-13. If a Food-category activity cost is already covered by the authoritative food budget, say it is included in that food budget and do not count it again in the activity subtotal.
-14. Preserve every Python-calculated budget value exactly. If essential prices are missing, label budget_remaining as provisional and the overall budget as partial, not final.
-15. Return the corrected itinerary only.
+11. Preserve activity names and cost fields from the supplied activity
+    options. Do not substitute a differently named OpenStreetMap place
+    for an activity option. The two sources may contain different places.
+
+12. A zero amount in non-live/sample data is not proof of free entry.
+    Only say "free entry" when the source explicitly confirms it; otherwise
+    label the zero as an unverified estimate.
+
+13. Distinguish free activities from unknown prices. If price is missing,
+    say "price unavailable"; do not invent a price.
+
+14. If a Food-category activity cost is already covered by the authoritative
+    food budget, say it is included in that food budget and do not count it
+    again in the activity subtotal.
+
+15. Preserve every Python-calculated budget value exactly. If essential
+    prices are missing, label budget_remaining as provisional and the
+    overall budget as partial, not final.
+
+16. Return the corrected itinerary only.
 """
 
     try:
