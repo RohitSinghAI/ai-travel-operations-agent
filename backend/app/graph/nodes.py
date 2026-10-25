@@ -617,6 +617,22 @@ RULES
 24. Do not claim that a suggested beach, fort, museum, or other place
     is nearby unless its location or distance supports that claim.
 
+25. For activity costs, preserve the activity agent's supplied price
+    and estimated_cost_per_person values. Never change a known estimate
+    to zero just because it is not a live quote.
+
+26. If an activity has category "Food" and its cost is already covered
+    by the authoritative food budget, explain that it is included in
+    the food budget. Do not add it again to the activity subtotal.
+
+27. Distinguish between a free activity and an activity whose price is
+    unknown. Use zero cost only when the source explicitly gives a
+    zero price. If the price is missing, say "price unavailable".
+
+28. In the budget summary, preserve the authoritative Python values.
+    When essential prices are incomplete, describe budget_remaining
+    as provisional, not as the final amount left to spend.
+
 
 RETURN
 
@@ -760,7 +776,11 @@ RULES
 8. If weather/place location does not match the requested destination, remove those claims and flag the mismatch.
 9. Do not label unverified places as verified attractions.
 10. Preserve the exact dates and weekdays from the verified trip calendar. Do not invent or recalculate weekday labels; do not schedule an overnight stay on checkout/departure date.
-11. Return the corrected itinerary only.
+11. Preserve activity agent price and estimated_cost_per_person values. Never turn a known estimate into zero merely because it is not a live quote.
+12. Distinguish free activities from unknown prices. Use zero only when the supplied source explicitly says the activity is free or price is zero; otherwise say the price is unavailable or an estimate as supported by the data.
+13. If a Food-category activity cost is already covered by the authoritative food budget, say it is included in that food budget and do not count it again in the activity subtotal.
+14. Preserve every Python-calculated budget value exactly. If essential prices are missing, label budget_remaining as provisional and the overall budget as partial, not final.
+15. Return the corrected itinerary only.
 """
 
     try:
