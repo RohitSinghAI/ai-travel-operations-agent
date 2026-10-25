@@ -27,13 +27,63 @@ def _as_dict(value: Any) -> dict[str, Any]:
     return {"result": value} if value is not None else {}
 
 
+def _normalize_activity_text(value: str) -> str:
+    """Normalize Markdown/punctuation so activity-name checks are consistent."""
+    value = re.sub(r"<[^>]+>", " ", value)
+    value = re.sub(r"[*_`#]", "", value)
+    value = re.sub(r"[^\w\s]", " ", value.casefold())
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def _enforce_checkout_date(itinerary: str, start_date: Any, end_date: Any) -> str:
+    """Deterministically correct summary/checkout labels to match API dates.
+
+    The end date is the checkout/departure date and is excluded from activity
+    days. This guards against an LLM changing the requested date range.
+    """
+    try:
+        start = date.fromisoformat(str(start_date)[:10])
+        end = date.fromisoformat(str(end_date)[:10])
+    except (TypeError, ValueError):
+        return itinerary
+    if end <= start:
+        return itinerary
+
+    start_label = start.strftime("%A %d %B %Y")
+    last_activity_day = end - timedelta(days=1)
+    end_label = end.strftime("%A %d %B %Y")
+    date_line = (
+        f"- **Dates:** {start_label} – {last_activity_day.strftime('%A %d %B %Y')} "
+        f"(checkout/departure on {end_label})"
+    )
+
+    # Replace the overview's date line, if present, rather than trusting the LLM.
+    itinerary = re.sub(
+        r"(?im)^\s*[-*]?\s*\*\*Dates?:\*\*.*$",
+        lambda _match: date_line,
+        itinerary,
+    )
+
+    # Correct checkout labels wherever they occur (including Markdown table cells).
+    checkout_label = f"Check-out/departure on {end_label}"
+    itinerary = re.sub(
+        r"(?i)check[\s\u2010-\u2015-]*out(?!/departure)(?:\*{0,2}\s*\([^)]*\)|\s+on\s+[^|.;\n]*)?",
+        lambda _match: checkout_label,
+        itinerary,
+    )
+    return itinerary
+
+
 def _validate_provider_activities(
     itinerary: str,
     activity_options: dict[str, Any],
 ) -> dict[str, Any]:
-    """Check whether provider activity names appear in the itinerary."""
-    activities = activity_options.get("activities") or []
+    """Compare exact provider activity names against the final itinerary text.
 
+    This validates mention/presence only; it does not claim that an activity
+    is booked, open, or actually scheduled at a particular time.
+    """
+    activities = activity_options.get("activities") or []
     if not isinstance(activities, list):
         return {
             "included": [],
@@ -41,21 +91,20 @@ def _validate_provider_activities(
             "validation_status": "invalid_activity_data",
         }
 
-    # Remove Markdown formatting before comparing activity names.
-    plain_text = re.sub(r"[*_`#]", "", itinerary).casefold()
-
-    included = []
-    missing = []
+    normalized_itinerary = _normalize_activity_text(itinerary)
+    included: list[str] = []
+    missing: list[str] = []
+    seen: set[str] = set()
 
     for activity in activities:
         if not isinstance(activity, dict):
             continue
-
         name = str(activity.get("name") or "").strip()
-        if not name:
+        normalized_name = _normalize_activity_text(name)
+        if not name or not normalized_name or normalized_name in seen:
             continue
-
-        if name.casefold() in plain_text:
+        seen.add(normalized_name)
+        if normalized_name in normalized_itinerary:
             included.append(name)
         else:
             missing.append(name)
@@ -743,7 +792,7 @@ RETURN
 
 
 def review_agent_node(state: TravelAgentState) -> TravelAgentState:
-    """Check factual consistency without changing Python-calculated totals."""
+    """Review itinerary while preserving deterministic budget/source data."""
     if state.get("error"):
         return state
 
@@ -751,14 +800,17 @@ def review_agent_node(state: TravelAgentState) -> TravelAgentState:
     live_weather = tool_data.get("live_weather") or {}
     live_places = tool_data.get("live_places") or {}
     budget = state.get("budget_breakdown") or {}
-
     requested_destination = str(state.get("destination", "")).strip()
+
     trip_calendar = _build_trip_calendar(
-        state.get("start_date"),
-        state.get("end_date"),
+        state.get("start_date"), state.get("end_date")
     )
     weather_location = live_weather.get("location") or {}
-    places_location = live_places.get("location") or live_places.get("resolved_location") or {}
+    places_location = (
+        live_places.get("location")
+        or live_places.get("resolved_location")
+        or {}
+    )
     weather_location_matches = _location_matches_destination(
         requested_destination, weather_location
     )
@@ -773,33 +825,24 @@ def review_agent_node(state: TravelAgentState) -> TravelAgentState:
 
     compact_data = {
         "requested_destination": requested_destination,
+        "trip_calendar": trip_calendar,
         "weather_location": weather_location,
-        "weather_status": live_weather.get("status"),
         "weather_location_matches_requested_destination": weather_location_matches,
         "trip_forecast_covers_entire_trip": bool(
             weather_location_matches and forecast_covers_trip
         ),
-        "trip_forecast": trip_forecast if weather_location_matches else [],
-        "places_status": live_places.get("status"),
+        "trip_forecast": (
+            trip_forecast
+            if weather_location_matches and forecast_covers_trip
+            else []
+        ),
         "places_location": places_location,
         "places_location_matches_requested_destination": places_location_matches,
-        "places": [
-            {
-                "name": place.get("name"),
-                "category": place.get("category"),
-                "verified_tourist_attraction": place.get(
-                    "verified_tourist_attraction", False
-                ),
-            }
-            for place in ((live_places.get("places") or []) if places_location_matches else [])[:12]
-            if isinstance(place, dict)
-        ],
         "activity_options": state.get("activity_options") or {},
-        "activity_provider_records": (tool_data.get("find_activities") or {}).get(
-            "result", {}
+        "activity_provider_records": (
+            (tool_data.get("find_activities") or {}).get("result", {})
         ),
     }
-
     compact_budget = {
         "currency": budget.get("currency", "INR"),
         "user_budget": budget.get("user_budget"),
@@ -812,100 +855,100 @@ def review_agent_node(state: TravelAgentState) -> TravelAgentState:
         "is_live_quote": budget.get("is_live_quote", False),
     }
 
-    draft = str(state.get("itinerary") or "")
-    if len(draft) > 4500:
-        draft = draft[:4500] + "\n\n[Draft truncated for review.]"
+    draft = str(state.get("itinerary") or "").strip()
+    if not draft:
+        return {**state, "review_notes": "No itinerary available to review."}
+    if len(draft) > 6000:
+        draft = draft[:6000] + "\n\n[Draft truncated for review.]"
 
     prompt = f"""
-You are a travel itinerary quality reviewer.
+You are a factual travel-itinerary reviewer. Correct factual contradictions in the draft.
+Do not invent data, bookings, prices, opening hours, travel durations, or weather.
+Do not change any Python-calculated budget amount.
+The end date is checkout/departure; do not plan an overnight stay on that date.
+Only call weather a trip-date forecast when destination matches and forecast covers
+all required trip dates. Otherwise state that trip-date weather is unavailable.
+Use OpenStreetMap places only when the destination matches; label them as suggestions,
+not verified attractions or provider activities.
+The activity_options.activities list below is the authoritative processed list.
+Do not claim an activity is absent from provider data if it appears in that list.
+Keep exact activity names, and do not confuse provider activities with map suggestions.
+Zero in non-live/sample data does not prove free entry. Keep food activity costs inside
+the authoritative food budget when they are already counted there.
+Return the corrected itinerary only.
 
-TRIP
-- Source: {state.get("source", "")}
-- Destination: {state.get("destination", "")}
-- Start date: {state.get("start_date", "Not provided")}
-- End date: {state.get("end_date", "Not provided")}
-- Days/nights as defined by the API: {state.get("days", 1)}
-- Travelers: {state.get("travelers", 1)}
-- Verified calendar (exact dates/weekdays):
-{_json_for_prompt(trip_calendar, 800)}
-- end_date is checkout/departure; exclude it from overnight activities.
+VALIDATED DATA:
+{_json_for_prompt(compact_data, 3500)}
 
-FACT CHECK DATA
-{_json_for_prompt(compact_data, 2500)}
+AUTHORITATIVE PYTHON BUDGET (copy amounts exactly):
+{_json_for_prompt(compact_budget, 1800)}
 
-AUTHORITATIVE PYTHON BUDGET
-{_json_for_prompt(compact_budget, 2000)}
-
-DRAFT
+DRAFT:
 {draft}
-
-RULES
-1. Correct day-count, destination, and factual inconsistencies.
-2. Never claim a booking or availability is confirmed.
-3. Never invent prices, opening hours, weather, or live data.
-4. Never change any Python-calculated budget amount.
-5. Disclose missing transport/accommodation prices and sample data.
-6. Do not suggest flights; this project has no flight API.
-7. Only describe weather as a forecast for the trip dates if the location matches and the provider forecast covers the entire requested date range; otherwise say trip-date weather is unavailable.
-8. If weather/place location does not match the requested destination, remove those claims and flag the mismatch.
-9. Do not label unverified places as verified attractions.
-10. Preserve the exact dates and weekdays from the verified trip calendar. Do not invent or recalculate weekday labels; do not schedule an overnight stay on checkout/departure date.
-11. Preserve activity names and cost fields from the supplied activity options. Do not substitute a differently named OpenStreetMap place for an activity option. The two sources may contain different places.
-12. A zero amount in non-live/sample data is not proof of free entry. Only say "free entry" when the source explicitly confirms it; otherwise label the zero as an unverified estimate.
-13. Distinguish free activities from unknown prices. If price is missing, say "price unavailable"; do not invent a price.
-14. If a Food-category activity cost is already covered by the authoritative food budget, say it is included in that food budget and do not count it again in the activity subtotal.
-15. Preserve every Python-calculated budget value exactly. If essential prices are missing, label budget_remaining as provisional and the overall budget as partial, not final.
-16. Compare the exact names of all supplied activity options against the DRAFT itinerary. Report which provider activities are included and which are not included. Do not assume an activity is included merely because a different place from the places data appears.
-17. If a provider activity is missing from the DRAFT, explicitly state that it was not included in the itinerary. Do not replace it with a differently named OpenStreetMap place.
-18. OpenStreetMap places may remain as separate optional suggestions. Label them as places-data suggestions and do not present them as provider activities.
-19. Preserve the source and price status of each activity. A zero estimate from non-live data is not confirmation of free entry. Do not invent missing prices or change authoritative budget values.
-20. Return the corrected itinerary only.
-
-
 """
-    
+
     try:
         reviewed = ask_llm(prompt)
-
-        if not isinstance(reviewed, str) or not reviewed.strip():
-            return {
-                **state,
-                "review_notes": (
-                    "Review returned an empty response; "
-                    "original itinerary preserved."
-                ),
-            }
-
-        # Keep the reviewed itinerary.
-        final_itinerary = reviewed.strip()
-
-        # Validate provider activities against the final itinerary.
-        activity_validation = _validate_provider_activities(
-            final_itinerary,
-            state.get("activity_options") or {},
+        final_itinerary = (
+            reviewed.strip()
+            if isinstance(reviewed, str) and reviewed.strip()
+            else draft
         )
-
-        included = activity_validation["included"]
-        missing = activity_validation["missing"]
-
-        # Build review notes without changing the budget.
-        review_notes = (
-            "Final review completed. "
-            f"Provider activities included: {included}. "
-            f"Provider activities missing: {missing}."
+        review_status = (
+            "Final review completed."
+            if isinstance(reviewed, str) and reviewed.strip()
+            else "Review returned an empty response; original itinerary preserved."
         )
-
-        return {
-            **state,
-            "itinerary": final_itinerary,
-            "review_notes": review_notes,
-        }
-
     except Exception as exc:
-        # Review is optional: preserve the original itinerary if review fails.
-        return {
-            **state,
-            "review_notes": (
-                f"Review unavailable; original itinerary preserved: {exc}"
-            ),
-        }
+        final_itinerary = draft
+        review_status = f"Review unavailable; original itinerary preserved: {exc}"
+
+    # Deterministic date guard: the LLM must not shift checkout/departure dates.
+    final_itinerary = _enforce_checkout_date(
+        final_itinerary, state.get("start_date"), state.get("end_date")
+    )
+
+    # Deterministic audit: the LLM must not silently omit provider activity names.
+    activity_options = state.get("activity_options") or {}
+    activity_validation = _validate_provider_activities(
+        final_itinerary, activity_options
+    )
+    included = activity_validation["included"]
+    missing = activity_validation["missing"]
+
+    if missing:
+        activities = activity_options.get("activities") or []
+        missing_records = [
+            item for item in activities
+            if isinstance(item, dict)
+            and str(item.get("name") or "").strip() in missing
+        ]
+        lines = [
+            "## Provider-listed activities not found in the day-by-day plan",
+            "These names were returned by the activity provider but were not found in the itinerary text. They are suggestions only, not confirmed bookings:",
+        ]
+        for item in missing_records:
+            name = str(item.get("name") or "").strip()
+            category = str(item.get("category") or "Activity").strip()
+            price = item.get("estimated_cost_per_person", item.get("price"))
+            live = bool(item.get("is_live", False))
+            if price is None:
+                price_label = "price unavailable"
+            elif live:
+                price_label = f"reported price {price} {item.get('currency', 'INR')} (provider marked live)"
+            else:
+                price_label = f"unverified estimate {price} {item.get('currency', 'INR')}"
+            lines.append(f"- **{name}** ({category}) — {price_label}; not scheduled in the day-by-day plan.")
+        final_itinerary += "\n\n" + "\n".join(lines)
+
+    review_notes = (
+        f"{review_status} Provider activities mentioned in final itinerary: {included}. "
+        f"Provider activities not found before the deterministic audit: {missing}. "
+        f"Validation status: {activity_validation['validation_status']}."
+    )
+
+    return {
+        **state,
+        "itinerary": final_itinerary,
+        "review_notes": review_notes,
+    }
