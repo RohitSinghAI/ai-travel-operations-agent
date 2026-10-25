@@ -2,6 +2,7 @@ import asyncio
 import json
 from datetime import date, timedelta
 from typing import Any
+import re
 
 from backend.app.agents.activity_agent import run_activity_agent
 from backend.app.agents.hotel_agent import run_hotel_agent
@@ -24,6 +25,46 @@ def _as_dict(value: Any) -> dict[str, Any]:
     if isinstance(value, list):
         return {"items": value}
     return {"result": value} if value is not None else {}
+
+
+def _validate_provider_activities(
+    itinerary: str,
+    activity_options: dict[str, Any],
+) -> dict[str, Any]:
+    """Check whether provider activity names appear in the itinerary."""
+    activities = activity_options.get("activities") or []
+
+    if not isinstance(activities, list):
+        return {
+            "included": [],
+            "missing": [],
+            "validation_status": "invalid_activity_data",
+        }
+
+    # Remove Markdown formatting before comparing activity names.
+    plain_text = re.sub(r"[*_`#]", "", itinerary).casefold()
+
+    included = []
+    missing = []
+
+    for activity in activities:
+        if not isinstance(activity, dict):
+            continue
+
+        name = str(activity.get("name") or "").strip()
+        if not name:
+            continue
+
+        if name.casefold() in plain_text:
+            included.append(name)
+        else:
+            missing.append(name)
+
+    return {
+        "included": included,
+        "missing": missing,
+        "validation_status": "passed" if not missing else "missing_activities",
+    }
 
 
 async def _safe_mcp_call(
@@ -809,45 +850,62 @@ RULES
 8. If weather/place location does not match the requested destination, remove those claims and flag the mismatch.
 9. Do not label unverified places as verified attractions.
 10. Preserve the exact dates and weekdays from the verified trip calendar. Do not invent or recalculate weekday labels; do not schedule an overnight stay on checkout/departure date.
-11. Preserve activity names and cost fields from the supplied activity
-    options. Do not substitute a differently named OpenStreetMap place
-    for an activity option. The two sources may contain different places.
+11. Preserve activity names and cost fields from the supplied activity options. Do not substitute a differently named OpenStreetMap place for an activity option. The two sources may contain different places.
+12. A zero amount in non-live/sample data is not proof of free entry. Only say "free entry" when the source explicitly confirms it; otherwise label the zero as an unverified estimate.
+13. Distinguish free activities from unknown prices. If price is missing, say "price unavailable"; do not invent a price.
+14. If a Food-category activity cost is already covered by the authoritative food budget, say it is included in that food budget and do not count it again in the activity subtotal.
+15. Preserve every Python-calculated budget value exactly. If essential prices are missing, label budget_remaining as provisional and the overall budget as partial, not final.
+16. Compare the exact names of all supplied activity options against the DRAFT itinerary. Report which provider activities are included and which are not included. Do not assume an activity is included merely because a different place from the places data appears.
+17. If a provider activity is missing from the DRAFT, explicitly state that it was not included in the itinerary. Do not replace it with a differently named OpenStreetMap place.
+18. OpenStreetMap places may remain as separate optional suggestions. Label them as places-data suggestions and do not present them as provider activities.
+19. Preserve the source and price status of each activity. A zero estimate from non-live data is not confirmation of free entry. Do not invent missing prices or change authoritative budget values.
+20. Return the corrected itinerary only.
 
-12. A zero amount in non-live/sample data is not proof of free entry.
-    Only say "free entry" when the source explicitly confirms it; otherwise
-    label the zero as an unverified estimate.
 
-13. Distinguish free activities from unknown prices. If price is missing,
-    say "price unavailable"; do not invent a price.
-
-14. If a Food-category activity cost is already covered by the authoritative
-    food budget, say it is included in that food budget and do not count it
-    again in the activity subtotal.
-
-15. Preserve every Python-calculated budget value exactly. If essential
-    prices are missing, label budget_remaining as provisional and the
-    overall budget as partial, not final.
-
-16. Return the corrected itinerary only.
 """
-
+    
     try:
         reviewed = ask_llm(prompt)
+
         if not isinstance(reviewed, str) or not reviewed.strip():
             return {
                 **state,
                 "review_notes": (
-                    "Review returned an empty response; original itinerary preserved."
+                    "Review returned an empty response; "
+                    "original itinerary preserved."
                 ),
             }
+
+        # Keep the reviewed itinerary.
+        final_itinerary = reviewed.strip()
+
+        # Validate provider activities against the final itinerary.
+        activity_validation = _validate_provider_activities(
+            final_itinerary,
+            state.get("activity_options") or {},
+        )
+
+        included = activity_validation["included"]
+        missing = activity_validation["missing"]
+
+        # Build review notes without changing the budget.
+        review_notes = (
+            "Final review completed. "
+            f"Provider activities included: {included}. "
+            f"Provider activities missing: {missing}."
+        )
+
         return {
             **state,
-            "itinerary": reviewed.strip(),
-            "review_notes": "Final review completed.",
+            "itinerary": final_itinerary,
+            "review_notes": review_notes,
         }
+
     except Exception as exc:
-        # Review is optional: preserve the draft if the review model is down.
+        # Review is optional: preserve the original itinerary if review fails.
         return {
             **state,
-            "review_notes": f"Review unavailable; original itinerary preserved: {exc}",
+            "review_notes": (
+                f"Review unavailable; original itinerary preserved: {exc}"
+            ),
         }
